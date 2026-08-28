@@ -1,0 +1,48 @@
+# yolo-dev default skills — the 30 coding-focused skills linked into
+# ~/.agents/skills on every fresh home. One name per line; # = comment.
+# The full library (924 skills) stays in /opt/skills — browse
+# ~/.agents/SKILLS-LIBRARY.txt and activate more with /opt/yolo/skill-use.sh.
+
+# --- engineering workflow (superpowers) ---
+test-driven-development
+systematic-debugging
+brainstorming
+writing-plans
+executing-plans
+requesting-code-review
+verification-before-completion
+resolving-merge-conflicts
+using-git-worktrees
+subagent-driven-development
+
+# --- engineering practices (mattpocock) ---
+code-review
+design-an-interface
+request-refactor-plan
+
+# --- frontend / web (anthropics + wshobson) ---
+frontend-design
+webapp-testing
+react-modernization
+typescript-advanced-types
+tailwind-design-system
+javascript-testing-patterns
+e2e-testing-patterns
+
+# --- backend / languages (wshobson) ---
+nodejs-backend-patterns
+python-project-structure
+async-python-patterns
+api-design-principles
+
+# --- databases (supabase, official) ---
+supabase
+supabase-postgres-best-practices
+
+# --- agent / API infrastructure (anthropics) ---
+mcp-builder
+skill-creator
+
+# --- docs & artifact styling ---
+doc-coauthoring
+theme-factory

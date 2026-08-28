@@ -1,0 +1,53 @@
+{
+  "comment": "yolo-dev seccomp profile: default-allow, explicit deny-list of container-breakout / host-tampering syscalls. Applied with --security-opt seccomp=seccomp-yolo.json alongside --cap-drop ALL and --security-opt no-new-privileges. Network syscalls stay allowed (agents must reach the LAN model server).",
+  "defaultAction": "SCMP_ACT_ALLOW",
+  "archMap": [
+    {
+      "architecture": "SCMP_ARCH_X86_64",
+      "subArchitectures": ["SCMP_ARCH_X86", "SCMP_ARCH_X32"]
+    }
+  ],
+  "syscalls": [
+    {
+      "names": [
+        "mount",
+        "umount2",
+        "pivot_root",
+        "chroot",
+        "ptrace",
+        "process_vm_readv",
+        "process_vm_writev",
+        "kexec_load",
+        "kexec_file_load",
+        "open_by_handle_at",
+        "name_to_handle_at",
+        "keyctl",
+        "add_key",
+        "request_key",
+        "bpf",
+        "perf_event_open",
+        "reboot",
+        "swapon",
+        "swapoff",
+        "settimeofday",
+        "clock_settime",
+        "create_module",
+        "init_module",
+        "finit_module",
+        "delete_module",
+        "acct",
+        "quotactl",
+        "fanotify_init",
+        "vhangup",
+        "sethostname",
+        "setdomainname",
+        "iopl",
+        "ioperm",
+        "lookup_dcookie",
+        "nfsservctl"
+      ],
+      "action": "SCMP_ACT_ERRNO",
+      "errnoRet": 1
+    }
+  ]
+}

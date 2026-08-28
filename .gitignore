@@ -1,0 +1,16 @@
+# Never commit runtime credentials.
+.env
+.env.*
+!.env.example
+!*.env.example
+*.key
+*.pem
+*credentials*
+
+# Local editor and build state.
+.idea/
+.vscode/
+__pycache__/
+node_modules/
+dist/
+build/

@@ -1,0 +1,14 @@
+{
+  "workbench.colorTheme": "GitHub Dark Default",
+  "workbench.iconTheme": "material-icon-theme",
+  "editor.formatOnSave": true,
+  "editor.minimap.enabled": true,
+  "files.autoSave": "afterDelay",
+  "workbench.startupEditor": "none",
+  "security.workspace.trust.enabled": false,
+  "terminal.integrated.defaultProfile.linux": "bash",
+  "python.languageServer": "jedi",
+  "python.analysis.autoImportCompletions": false,
+  "git.autofetch": true,
+  "diffEditor.ignoreTrimWhitespace": false
+}

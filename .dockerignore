@@ -1,0 +1,10 @@
+*
+!Dockerfile
+!scripts/**
+!opt/**
+!docs/**
+!seccomp-yolo.json
+!yolo.env.example
+!README.md
+!SECURITY.md
+!PINS.md
