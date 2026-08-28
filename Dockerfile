@@ -8,8 +8,6 @@ ARG VCS_REF=unknown
 # manifest, matching the architecture of the recovered SCIF build.
 FROM ${NODE_IMAGE} AS base
 
-ARG VERSION
-ARG VCS_REF
 ARG OPENCODE_VERSION=1.18.13
 ARG GOOSE_VERSION=1.45.0
 ARG PI_VERSION=0.83.0
@@ -18,9 +16,7 @@ ARG PRIME_AGENT_VERSION=0.7.2
 
 LABEL org.opencontainers.image.title="yolo-agent" \
       org.opencontainers.image.description="Persistent, locked-down autonomous coding-agent environment" \
-      org.opencontainers.image.source="https://github.com/link2427/yolo-agent" \
-      org.opencontainers.image.version="${VERSION}" \
-      org.opencontainers.image.revision="${VCS_REF}"
+      org.opencontainers.image.source="https://github.com/link2427/yolo-agent"
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
@@ -67,10 +63,7 @@ RUN HOME=/home/agent bash /tmp/install-web-ide.sh && rm -f /tmp/install-web-ide.
 # Small headless runtime. It includes every agent but omits the large skills
 # library and browser IDE. The same persisted home volume works with both
 # profiles.
-FROM toolchain AS runtime-headless
-
-ARG VERSION
-ARG VCS_REF
+FROM toolchain AS runtime-common
 
 RUN find / -xdev -type f -perm /6000 -exec chmod u-s,g-s {} \; 2>/dev/null || true
 RUN mkdir -p /workspace /opt/yolo
@@ -100,9 +93,18 @@ USER agent
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["/bin/bash", "-l"]
 
+# Version metadata is intentionally added only after the immutable runtime
+# layers, so a release-number change does not rebuild the toolchain.
+FROM runtime-common AS runtime-headless
+ARG VERSION
+ARG VCS_REF
+LABEL org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.revision="${VCS_REF}" \
+      org.opencontainers.image.variant="headless"
+
 # Full runtime composes the independently cached skills and web IDE artifacts
 # onto the exact same headless foundation.
-FROM runtime-headless AS runtime-full
+FROM runtime-common AS runtime-full
 USER root
 COPY --from=skills-library /opt/skills/ /opt/skills/
 COPY --from=web-ide /opt/code-server/ /opt/code-server/
@@ -114,6 +116,11 @@ RUN ln -s /opt/code-server/bin/code-server /usr/local/bin/code-server \
  && chown -R root:root /opt/skills /opt/code-server /opt/yolo \
  && chown -R agent:agent /home/agent
 USER agent
+ARG VERSION
+ARG VCS_REF
+LABEL org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.revision="${VCS_REF}" \
+      org.opencontainers.image.variant="full"
 
 # Build-only validation targets. CI and `docker buildx bake` execute these;
 # they are never published.
