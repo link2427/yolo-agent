@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -euxo pipefail
 
 : "${OPENCODE_VERSION:?}"
 : "${GOOSE_VERSION:?}"
@@ -9,13 +9,13 @@ set -euo pipefail
 
 test "$(id -un)" = agent
 test "$(id -u)" = 10001
-opencode --version | grep -Fq "$OPENCODE_VERSION"
-goose --version | grep -Fq "$GOOSE_VERSION"
-pi --version | grep -Fq "$PI_VERSION"
-aider --version | grep -Fq "$AIDER_VERSION"
+opencode --version 2>&1 | grep -Fq "$OPENCODE_VERSION"
+goose --version 2>&1 | grep -Fq "$GOOSE_VERSION"
+pi --version 2>&1 | grep -Fq "$PI_VERSION"
+aider --version 2>&1 | grep -Fq "$AIDER_VERSION"
 prime-agent --version 2>&1 | grep -Fq "$PRIME_AGENT_VERSION"
-node --version | grep -q '^v22'
-python3 --version | grep -q '3\.11'
+node --version 2>&1 | grep -q '^v22'
+python3 --version 2>&1 | grep -q '3\.11'
 
 for tool in git curl jq rg fdfind shellcheck tmux vim unzip xz tini; do
   command -v "$tool" >/dev/null
