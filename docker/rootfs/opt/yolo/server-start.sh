@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# yolo-dev:4.0 web supervisor — started by run-yolo-server.sh (runs as the
+# yolo-agent web supervisor — started by the server launcher (runs as the
 # agent user inside the locked container).
 #
 #   code-server  -> VS Code in the browser        http://<host>:8080
@@ -18,12 +18,12 @@ start_code_server() {
   echo $!
 }
 start_ttyd() {
-  ttyd -p 7681 -t titleFixed=yolo-dev -W tmux new -A -s yolo /bin/bash -l \
+  ttyd -p 7681 -t titleFixed=yolo-agent -W tmux new -A -s yolo-agent /bin/bash -l \
     >>/tmp/ttyd.log 2>&1 &
   echo $!
 }
 
-echo "yolo-dev web: code-server on :8080, ttyd+tmux on :7681"
+echo "yolo-agent web: code-server on :8080, ttyd+tmux on :7681"
 CS_PID=$(start_code_server)
 TTYD_PID=$(start_ttyd)
 

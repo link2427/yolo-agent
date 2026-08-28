@@ -8,7 +8,7 @@
 # are linked (30 coding-focused skills). This keeps the skills that agents
 # load at session start (goose injects names+descriptions) tiny.
 #
-# ALL mode (link the whole library, 924 skills): SKILL_FARM=all
+# ALL mode (link the whole library, more than 900 skills): SKILL_FARM=all
 # Custom list: SKILL_FARM_FILE=/path/to/list.txt
 #
 # The complete library stays in /opt/skills (read-only, root-owned) and is

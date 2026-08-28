@@ -9,11 +9,11 @@ Everything is pinned; builds fail on hash mismatch.
 | opencode | 1.18.13 | `github.com/anomalyco/opencode` release tarball | sha256 TOFU¹ `8d500b20fed2d26e537e221895b1a575476571b4f0089bb29fb13eeb8eb9e937` |
 | goose | 1.45.0 | `github.com/aaif-goose/goose` release tarball | sha256 TOFU¹ `e0db638ac437ca0a60b0c1622f45322608d228d1a285214c3bf48fd9763346a5` |
 | pi | 0.83.0 | `github.com/earendil-works/pi` release tarball | sha256 **vs official release SHA256SUMS** `b0625eb623197b0afe20c870d21ef2f34481f1504e5777df3f698a66c7636f5f` |
-| prime-agent | 0.7.2 | `github.com/PrimeIntellect-ai/prime-agent` release tarball | sha256 **vs official release SHA256SUMS** `bc5471f2a626d727b88a45eb745fff93b10c554a3c4fc5912f25d8c64b987f5e` (install patched via npm overrides for the Aug-2026 AWS SDK registry breakage) |
+| prime-agent | 0.7.1 | `github.com/PrimeIntellect-ai/prime-agent` release tarball | sha256 **vs official release SHA256SUMS** `d68612c83239caafab72cc76c55ac572bfd07a059ea8fbd2a3ddbe1f2b55dcdb` |
 | aider-chat | 0.86.2 | PyPI (isolated venv `/opt/aider-venv`) | pinned exact version over TLS |
 | code-server | 4.117.0 | `github.com/coder/code-server` release tarball (standalone) | sha256 TOFU¹ `5616650cc65a82046eb7ab24b794da6632a3292d07df06908800d75544962391` |
 | ttyd | 1.7.7 | `github.com/tsl0922/ttyd` release binary `ttyd.x86_64` | sha256 **vs official release SHA256SUMS** |
-| node / npm | 22 | Docker Hub `node:22-bookworm-slim` | Linux/amd64 manifest pinned: `sha256:4d676821dff059fd00d277ee4261ef34ea712317fed0737c03941481b5760c96` |
+| node / npm | 22 | Docker Hub `node:22-bookworm-slim` | image tag pinned |
 | python / git / build-essential / … | Debian bookworm (12) | apt | distro-managed |
 
 ## Skills library (10 repos, 924 deduped skills, ~147 MB)
@@ -34,7 +34,7 @@ All tarballs are `https://codeload.github.com/<owner>/<repo>/tar.gz/<commit>`
 | affaan-m/ECC | `2665d48` | MIT | 284 |
 | alirezarezvani/claude-skills | `aa8d778` | MIT | 418 |
 
-Full commit SHAs and tarball sha256 values are in `docker/install/install-skills.sh`
+Full commit SHAs and tarball sha256 values are in `scripts/install-skills.sh`
 and the repo `PINS.md`.
 
 ¹ **TOFU (trust on first use):** artifacts without an official checksum are
@@ -51,12 +51,10 @@ Installed at build time from Open VSX; installed versions are recorded in
 `/opt/yolo/EXTENSIONS-MANIFEST.txt` inside the image — audit that file before
 shipping if you need to certify exact extension versions.
 
-## Verifying historical artifacts
+## Verifying the artifact
 
 ```bash
-sha256sum -c history/v5.0/bundle-metadata/SHA256SUMS
-sha256sum -c history/v6.0/bundle-metadata/SHA256SUMS
+sha256sum -c SHA256SUMS          # in the exported bundle
+# expected for v5.0:
+# 3ad5d7f8bce19c983244ea8adbdfb7d76baa4bb2a24bf35a5f807f81d56e8d99  yolo-dev_5.0.docker.tar
 ```
-
-The large archives are not committed, so these commands are meaningful only
-when run beside a recovered archive with the matching original filename.

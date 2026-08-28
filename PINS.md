@@ -1,4 +1,4 @@
-# Version pins & integrity (v2)
+# Version pins & integrity
 
 Everything is pinned; builds fail on hash mismatch.
 
@@ -10,11 +10,11 @@ Everything is pinned; builds fail on hash mismatch.
 | goose | 1.45.0 | `github.com/aaif-goose/goose` release tarball | sha256 TOFU¹ `e0db638ac437ca0a60b0c1622f45322608d228d1a285214c3bf48fd9763346a5` |
 | pi | 0.83.0 | `github.com/earendil-works/pi` release tarball | sha256 **vs official release SHA256SUMS** `b0625eb623197b0afe20c870d21ef2f34481f1504e5777df3f698a66c7636f5f` |
 | prime-agent | 0.7.2 | `github.com/PrimeIntellect-ai/prime-agent` release tarball `prime-agent-0.7.2.tgz` | sha256 **vs official release SHA256SUMS** `bc5471f2a626d727b88a45eb745fff93b10c554a3c4fc5912f25d8c64b987f5e`; install patched with npm overrides for the Aug-2026 AWS SDK registry breakage (`@aws-sdk/eventstream-handler-node`→3.972.9, `@aws-sdk/types`→3.974.2 — referenced patch versions 3.972.32/3.974.3 were never published); kernel runtime verified at build |
-| code-server | 4.117.0 | npm `code-server@4.117.0` (global) | pinned exact version over TLS |
+| code-server | 4.117.0 | `github.com/coder/code-server` standalone release tarball | sha256 TOFU¹ `5616650cc65a82046eb7ab24b794da6632a3292d07df06908800d75544962391` |
 | ttyd | 1.7.7 | `github.com/tsl0922/ttyd` release binary `ttyd.x86_64` | sha256 **vs official release SHA256SUMS** (verified at build) |
 | VS Code extension pack | 15 extensions | Open VSX, installed at build time | versions recorded in `/opt/yolo/EXTENSIONS-MANIFEST.txt` in the image (audit before shipping) |
 | aider-chat | 0.86.2 | PyPI (isolated venv) | pinned exact version over TLS |
-| node | 22 (bookworm-slim) | Docker Hub `node:22-bookworm-slim` | image tag pinned |
+| node | 22 (bookworm-slim) | Docker Hub `node:22-bookworm-slim` | Linux/amd64 manifest pinned: `sha256:4d676821dff059fd00d277ee4261ef34ea712317fed0737c03941481b5760c96` |
 | python / git / build-essential / … | Debian bookworm (12) | apt | distro-managed |
 
 ## Skills library (10 repos, 920 deduped skills after v6 name normalization, ~147 MB on disk)
@@ -48,4 +48,4 @@ are Apache-2.0. ³ `skills/docx|pdf|pptx|xlsx` are "source-available, not open
 source" — pruned at install, never redistributed.
 
 To roll new versions/pins, override the build args (agents) or edit
-`scripts/install-skills.sh` (skills).
+`docker/install/install-skills.sh` (skills).

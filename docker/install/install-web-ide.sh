@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 #
 # Install the browser IDE stack:
-#   * code-server 4.117.0  (VS Code in the browser)   — npm global, pinned
+#   * code-server 4.117.0  (VS Code in the browser)   — standalone tarball,
+#                                                       pinned and hash-checked
 #   * ttyd 1.7.7            (browser terminal)        — pinned, verified vs the
 #     official SHA256SUMS published in the release
 #   * a curated default extension pack (themes + tooling) pre-installed from

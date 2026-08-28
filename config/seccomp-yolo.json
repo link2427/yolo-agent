@@ -1,5 +1,5 @@
 {
-  "comment": "yolo-dev seccomp profile: default-allow, explicit deny-list of container-breakout / host-tampering syscalls. Applied with --security-opt seccomp=seccomp-yolo.json alongside --cap-drop ALL and --security-opt no-new-privileges. Network syscalls stay allowed (agents must reach the LAN model server).",
+  "comment": "yolo-agent seccomp profile: default-allow, explicit deny-list of container-breakout and host-tampering syscalls. Applied with --cap-drop ALL and no-new-privileges. Network syscalls stay allowed so agents can reach configured model and Git services.",
   "defaultAction": "SCMP_ACT_ALLOW",
   "archMap": [
     {

@@ -62,7 +62,7 @@ SKILL_FARM=all /opt/yolo/make-skill-farm.sh   # activate ALL 920
 SKILL_FARM_FILE=/path/to/list /opt/yolo/make-skill-farm.sh  # custom set
 ```
 
-The separate **`yolo-dev-6.0-skill-library.zip`** export contains the full
+The separate **`yolo-agent-6.0-skill-library.zip`** export contains the full
 library (skills/ + `SKILLS-LIBRARY.txt` + README) for use on machines without
 the image, or to keep the library off the image if you ever want a leaner
 build.

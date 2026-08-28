@@ -1,80 +1,55 @@
 # 02 — Quickstart
 
-Five steps from disc to running agents.
-
-## 1. Load the image (destination Docker host)
+## 1. Configure runtime values
 
 ```bash
-# copy the whole bundle directory onto the disc, then:
-sha256sum -c SHA256SUMS            # verify integrity
-docker load --input yolo-dev_5.0.docker.tar
-docker image inspect yolo-dev:5.0  # confirm the tag
+cp config/yolo.env.example config/yolo.env
 ```
 
-## 2. Create the launcher directory
+At minimum, set VLLM_BASE_URL and VLLM_MODEL, or configure the alternative
+endpoint variables described in [07-MODEL-ENDPOINT.md](07-MODEL-ENDPOINT.md).
+Real keys belong only in config/yolo.env; Git ignores that file.
 
-The bundle's `run-yolo.sh`, `run-yolo-server.sh`, `seccomp-yolo.json` and
-`yolo.env.example` should live next to each other on the host (keep them
-together — the launchers reference `seccomp-yolo.json` and `yolo.env` by
-relative path).
+## 2. Build and validate
 
 ```bash
-mkdir ~/yolo && cd ~/yolo
-# copy run-yolo.sh, run-yolo-server.sh, seccomp-yolo.json, yolo.env.example here
-chmod +x run-yolo.sh run-yolo-server.sh
-cp yolo.env.example yolo.env
+docker buildx bake
+docker buildx bake images
 ```
 
-## 3. Configure `yolo.env`
+The first command runs both image smoke suites. The second produces the full
+and headless images. To use a published image, set YOLO_IMAGE to a GHCR tag.
 
-Minimum (vLLM):
+## 3. Start a shell
 
 ```bash
-VLLM_BASE_URL=http://192.168.1.50:8000/v1   # your vLLM server
-VLLM_MODEL=Qwen/Qwen3-Coder-30B-AWQ         # a model id it serves
+docker compose run --rm agent
+# or: ./bin/run.sh
 ```
 
-Optional: Gitea git push (see 06), LM Studio instead of vLLM (see 07), auth
-keys (`VLLM_API_KEY`, `OPENAI_API_KEY`).
+The current directory is /workspace; agent state persists in the named home
+volume even though the interactive container is removed at exit.
 
-## 4a. Run interactively (terminal)
+## 4. Start the browser services
 
 ```bash
-cd ~/yolo
-./run-yolo.sh                # shell as uid 10001, cwd mounted as /workspace
+docker compose --profile server up -d server
+docker compose logs -f server
 ```
 
-On first shell, agents auto-configure from `yolo.env` (endpoint + git), then:
+Defaults:
+
+- code-server: http://127.0.0.1:8080
+- ttyd/tmux: http://127.0.0.1:7681
+
+Use YOLO_BIND_ADDRESS=0.0.0.0 only on a trusted network or behind an
+authenticated proxy.
+
+## 5. Stop without deleting state
 
 ```bash
-opencode                  # /models to pick the model
-pi --model vllm/<model>
-prime-agent
-goose
-aider
+docker compose --profile server down
 ```
 
-## 4b. Run as a server (browser access)
-
-```bash
-./run-yolo-server.sh       # detached; code-server :8080, ttyd+tmux :7681
-docker logs -f yolo-server
-```
-
-Then open `http://<host>:8080` (VS Code) or `http://<host>:7681` (terminal).
-
-## 5. Stop
-
-```bash
-docker stop yolo-server          # server mode
-# interactive mode exits when you exit the shell (--rm auto-cleans)
-```
-
-## Notes
-
-- The `yolo-home-v5` named volume holds `/home/agent` (configs, skills farm,
-  git credentials, agent sessions) and persists across container restarts.
-- Your working directory is mounted read-write as `/workspace` — that's the
-  only host path the container can touch.
-- First launch of a fresh volume copies the baked home content (configs,
-  skills, prime-agent kernel) into it; allow a few seconds.
+Do not add --volumes unless you intentionally want to delete the persisted
+agent home.

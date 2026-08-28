@@ -1,6 +1,6 @@
-# yolo-dev default skills — the 30 coding-focused skills linked into
+# yolo-agent default skills — the 30 coding-focused skills linked into
 # ~/.agents/skills on every fresh home. One name per line; # = comment.
-# The full library (924 skills) stays in /opt/skills — browse
+# The full library (more than 900 skills) stays in /opt/skills — browse
 # ~/.agents/SKILLS-LIBRARY.txt and activate more with /opt/yolo/skill-use.sh.
 
 # --- engineering workflow (superpowers) ---

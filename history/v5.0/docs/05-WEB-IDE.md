@@ -1,8 +1,8 @@
 # 05 — Browser access (code-server + ttyd)
 
-`bin/run-server.sh` starts the container detached with two web endpoints.
-They have no application-level authentication but are published to localhost
-by default. See 08 before changing `YOLO_BIND_ADDRESS`:
+`run-yolo-server.sh` starts the container detached with two web endpoints,
+exposed on the LAN **without authentication** (air-gapped network only — see
+08):
 
 | Service | URL | What it is |
 |---------|-----|------------|
@@ -33,7 +33,7 @@ the network rules.
 
 ## ttyd + tmux (terminal persistence)
 
-ttyd serves a terminal that wraps **tmux** (`tmux new -A -s yolo-agent`), so:
+ttyd serves a terminal that wraps **tmux** (`tmux new -A -s yolo`), so:
 
 - Close the browser tab → the tmux session **survives**; reopen the page to
   reattach.
@@ -43,10 +43,10 @@ ttyd serves a terminal that wraps **tmux** (`tmux new -A -s yolo-agent`), so:
 ## Ops
 
 ```bash
-docker logs -f yolo-agent-server        # logs (also /tmp/code-server.log, /tmp/ttyd.log in-container)
-docker stop yolo-agent-server           # stop
-docker restart yolo-agent-server        # restart (--restart unless-stopped handles reboots)
-docker rm -f yolo-agent-server          # remove
+docker logs -f yolo-server        # logs (also /tmp/code-server.log, /tmp/ttyd.log in-container)
+docker stop yolo-server           # stop
+docker restart yolo-server        # restart (--restart unless-stopped handles reboots)
+docker rm -f yolo-server          # remove
 ```
 
 Both services auto-respawn if they crash (supervisor: `/opt/yolo/server-start.sh`).

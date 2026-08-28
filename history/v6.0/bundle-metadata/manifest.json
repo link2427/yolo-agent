@@ -1,0 +1,14 @@
+{
+  "archive_file": "yolo-dev_6.0.docker.tar",
+  "archive_format": "docker-save",
+  "archive_sha256": "f3970e9b82b4ceef888a414c68bea581edca26af391bff1680d0987363c77e3d",
+  "archive_size_bytes": 1766530048,
+  "builder": "ghcr.io/osscontainertools/kaniko:v1.28.2-alpine@sha256:44f90ae1ba366aeedbd0f2d56dbe246354553e47904338dd9321a41a44bea9ff",
+  "created_at": "2026-08-11T21:11:07.738158+00:00",
+  "dockerfile": "/home/coder/project/Dockerfile",
+  "duration_seconds": 1421.51,
+  "image": "yolo-dev:6.0",
+  "platform": "linux/amd64",
+  "source_context": "/home/coder/project",
+  "source_revision": null
+}

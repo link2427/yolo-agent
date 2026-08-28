@@ -8,7 +8,7 @@ residual risk — keep the destination engine patched.
 
 ## Layer A — host / runtime (destination machine; the real boundary)
 
-These are applied by `bin/run.sh` / `bin/run-server.sh` and cannot be baked
+These are applied by `run-yolo.sh` / `run-yolo-server.sh` and cannot be baked
 in:
 
 1. **Never** give the container the Docker socket, host paths (except the
@@ -66,12 +66,13 @@ contains it; nothing else does.
 
 ## Browser exposure tradeoff (server mode)
 
-`bin/run-server.sh` exposes code-server (:8080) and ttyd (:7681) with
-**no application-level authentication**. Host publishing defaults to
-`127.0.0.1`; anyone who can reach ports deliberately exposed with
-`YOLO_BIND_ADDRESS=0.0.0.0` gets a VS Code instance that can run commands
-**as the agent user**. On shared or internet-reachable networks, keep the
-localhost binding and use an authenticated reverse proxy or SSH tunnel.
+`run-yolo-server.sh` exposes code-server (:8080) and ttyd (:7681) on `0.0.0.0`
+**with no authentication** — anyone who can reach those ports gets a VS Code
+instance that can run commands **as the agent user**. Acceptable only on a
+trusted, air-gapped network (the intended deployment). On any shared or
+internet-reachable network, use interactive mode or bind localhost + SSH
+tunnel. Everything the browser needs is baked (extensions pre-installed,
+update checks disabled) — it never phones home.
 
 ## Git credentials
 
@@ -88,7 +89,7 @@ compromised agent can't plant a malicious skill that survives a restart.
 ## Verification after load
 
 ```bash
-docker run --rm --read-only --tmpfs /tmp --user 10001:10001 --entrypoint sh yolo-agent:7.0.0 -c \
+docker run --rm --read-only --tmpfs /tmp --user 10001:10001 --entrypoint sh yolo-dev:5.0 -c \
   'id; command -v sudo || echo "no sudo"; find / -xdev -perm /6000 2>/dev/null | wc -l; \
    ls ~/.agents/skills | wc -l; jq -r .permission ~/.config/opencode/opencode.json'
 # expect: uid=10001(agent) ... / no sudo / 0 / 924 / allow

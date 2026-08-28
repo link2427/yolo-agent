@@ -34,18 +34,18 @@
 | List sessions | `tmux ls` |
 | Kill a session | `tmux kill-session -t work` |
 
-(ttyd wraps `tmux new -A -s yolo-agent` — closing the browser tab is equivalent to
+(ttyd wraps `tmux new -A -s yolo` — closing the browser tab is equivalent to
 detaching.)
 
 ## Docker ops (destination host)
 
 | Task | Command |
 |------|---------|
-| Interactive run | `./bin/run.sh` (from the directory to expose as `/workspace`) |
-| Run one command | `./bin/run.sh opencode` |
-| Server mode | `./bin/run-server.sh` |
-| Server logs | `docker logs -f yolo-agent-server` |
-| Stop / restart / remove server | `docker stop yolo-agent-server` · `docker restart yolo-agent-server` · `docker rm -f yolo-agent-server` |
+| Interactive run | `./run-yolo.sh` (from the directory to expose as `/workspace`) |
+| Run one command | `./run-yolo.sh opencode` |
+| Server mode | `./run-yolo-server.sh` |
+| Server logs | `docker logs -f yolo-server` |
+| Stop / restart / remove server | `docker stop yolo-server` · `docker restart yolo-server` · `docker rm -f yolo-server` |
 | Verify lockdown | see 08 "Verification after load" |
 
 ## Git (inside the container)
@@ -70,9 +70,9 @@ detaching.)
 | Path | What |
 |------|------|
 | `/workspace` | The mounted working directory (agents work here) |
-| `/home/agent` | Home (volume `yolo-agent-home-v7`): configs, skills farm, git creds, sessions |
+| `/home/agent` | Home (volume `yolo-home-v5`): configs, skills farm, git creds, sessions |
 | `/opt/skills` | Read-only skills library (root-owned) |
-| `/opt/yolo` | Runtime configurators, supervisor, docs, and seccomp profile |
+| `/opt/yolo` | Launchers, configurators, docs, seccomp profile |
 | `/opt/code-server` | code-server install |
 | `/opt/aider-venv` | aider's isolated Python venv |
 | `/opt/prime…` → `~/.prime/agent/kernel-venv` | prime-agent's IPython kernel |

@@ -70,4 +70,4 @@ clean), then:
 
 If `server4` doesn't resolve inside the container, set `GITEA_HOST_IP` in
 `yolo.env` and uncomment `--add-host server4:$GITEA_HOST_IP` in
-`bin/run.sh` / `bin/run-server.sh`.
+`run-yolo.sh` / `run-yolo-server.sh`.

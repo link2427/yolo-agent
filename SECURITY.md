@@ -1,4 +1,4 @@
-# Security posture for YOLO-mode agents (v2)
+# Security posture for YOLO-mode agents
 
 The threat model: the agent is **trusted inside its own workspace** (it must
 run arbitrary commands to do its job) but must **not** reach the host, other
@@ -29,7 +29,7 @@ These cannot be baked into the image; they are the actual security boundary.
      **never mount the Docker socket**.
 3. `--cap-drop ALL`, `--security-opt no-new-privileges`, strict seccomp
    (ship: `seccomp-yolo.json`), non-root user (uid 10001, baked in).
-4. Resource limits (in `run-yolo.sh`): `--memory`, `--cpus`,
+4. Resource limits (in `bin/run.sh`): `--memory`, `--cpus`,
    `--pids-limit 512`, `--ulimit` nofile/nproc.
 5. **Read-only rootfs** with writable tmpfs/volumes only for `/tmp`, `/run`,
    `/dev/shm`, `/workspace`, `/home/agent`. The skills library lives in
@@ -85,7 +85,7 @@ These cannot be baked into the image; they are the actual security boundary.
 ## Verification after `docker load`
 
 ```bash
-docker run --rm --read-only --tmpfs /tmp --user 10001:10001 --entrypoint sh yolo-dev:2.0 -c \
+docker run --rm --read-only --tmpfs /tmp --user 10001:10001 --entrypoint sh yolo-agent:7.0.0 -c \
   'id; command -v sudo || echo "no sudo"; find / -xdev -perm /6000 2>/dev/null | wc -l; \
    ls ~/.agents/skills | wc -l; jq -r .permission ~/.config/opencode/opencode.json'
 # expect: uid=10001(agent) ... / no sudo / 0 / >400 / allow
@@ -95,24 +95,24 @@ The image's `--target test` stage already runs these checks at build time.
 
 ## Browser access (server mode) — deliberate exposure tradeoff
 
-`run-yolo-server.sh` exposes **code-server (:8080)** and **ttyd (:7681)** on
-`0.0.0.0` **with no authentication**. This is a deliberate exception to the
+`bin/run-server.sh` exposes **code-server (:8080)** and **ttyd (:7681)**
+**with no application-level authentication**. Host publishing defaults to
+`127.0.0.1`; setting `YOLO_BIND_ADDRESS=0.0.0.0` is a deliberate exception to the
 egress-only posture: a web server is inbound surface, and anyone who can reach
 those ports gets a full VS Code instance that can execute commands **as the
 agent user** — the same trust level as the agents themselves.
 
-This is acceptable **only** on a trusted, air-gapped network (the intended
-deployment). On any shared or internet-reachable network, do not use server
-mode; use `run-yolo.sh` interactively instead, or bind to localhost and SSH-
-tunnel. The container lockdown (non-root, cap-drop, seccomp, read-only rootfs)
-still applies to everything the web UI can do.
+LAN-only posture. On any shared or internet-reachable network, keep the
+localhost binding and use an authenticated reverse proxy or SSH tunnel. The
+container lockdown (non-root, cap-drop, seccomp, read-only rootfs) still
+applies to everything the web UI can do.
 
 Everything the browser needs is **baked at build time** — extensions are
 pre-installed from Open VSX (the locked runtime has no open-vsx.org egress),
 and code-server's update check is disabled, so the server never phones home.
 Installed extension versions: `/opt/yolo/EXTENSIONS-MANIFEST.txt`.
 
-## Git credentials (v5)
+## Git credentials
 
 `configure-git.sh` writes auth into the **volume**, not the image: token mode
 stores `~/.git-credentials` (mode 600; plaintext token over air-gapped HTTP is

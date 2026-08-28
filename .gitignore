@@ -1,16 +1,30 @@
-# Never commit runtime credentials.
+# Runtime credentials and agent state
 .env
 .env.*
 !.env.example
 !*.env.example
+config/yolo.env
 *.key
 *.pem
 *credentials*
+.codex/
+.claude/
+.reasonix/
+.config/opencode/
 
-# Local editor and build state.
+# Large exports and build output
+*.docker.tar
+*.docker.tar.gz
+*.oci.tar
+*.zip
+dist/
+build/
+.buildx-cache/
+
+# Local development state
 .idea/
 .vscode/
 __pycache__/
 node_modules/
-dist/
-build/
+*.log
+!history/**/bundle-metadata/build.log

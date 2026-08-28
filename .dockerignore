@@ -1,10 +1,8 @@
 *
 !Dockerfile
-!scripts/**
-!opt/**
+!docker/
+!docker/**
+!config/
+!config/seccomp-yolo.json
+!docs/
 !docs/**
-!seccomp-yolo.json
-!yolo.env.example
-!README.md
-!SECURITY.md
-!PINS.md

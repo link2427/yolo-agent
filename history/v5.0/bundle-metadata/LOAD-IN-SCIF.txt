@@ -1,0 +1,16 @@
+Container Forge offline handoff
+================================
+
+Image: yolo-dev:5.0
+Platform: linux/amd64
+Archive: yolo-dev_5.0.docker.tar
+
+1. Copy every file in this directory to the approved destination.
+2. Verify the transfer:
+   sha256sum -c SHA256SUMS
+
+3. Load the image into Docker:
+   docker load --input yolo-dev_5.0.docker.tar
+
+4. Confirm the tag:
+   docker image inspect yolo-dev:5.0

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # skill-use.sh — activate one skill from the /opt/skills library into the
-# default farm (~/.agents/skills). The library (924 skills) is always present
+# default farm (~/.agents/skills). The full library is always present
 # but only 30 are linked by default, to keep agent context small.
 #
 #   skill-use.sh <skill-name>

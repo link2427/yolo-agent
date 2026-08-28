@@ -1,0 +1,44 @@
+x-yolo-agent: &yolo-agent
+  image: ${YOLO_IMAGE:-yolo-agent:7.0.0}
+  user: "10001:10001"
+  read_only: true
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+    - seccomp=./config/seccomp-yolo.json
+  env_file:
+    - path: ./config/yolo.env
+      required: false
+  working_dir: /workspace
+  volumes:
+    - ${YOLO_WORKSPACE:-.}:/workspace
+    - yolo-agent-home:/home/agent
+  tmpfs:
+    - /tmp:rw,nosuid,size=2g
+    - /run:rw,noexec,nosuid,size=64m
+    - /dev/shm:rw,noexec,nosuid,size=256m
+  mem_limit: ${YOLO_MEM:-8g}
+  cpus: ${YOLO_CPUS:-4}
+  pids_limit: 2048
+  stop_grace_period: 30s
+
+services:
+  agent:
+    <<: *yolo-agent
+    stdin_open: true
+    tty: true
+    command: /bin/bash -l
+
+  server:
+    <<: *yolo-agent
+    profiles: [server]
+    restart: unless-stopped
+    command: /opt/yolo/server-start.sh
+    ports:
+      - ${YOLO_BIND_ADDRESS:-127.0.0.1}:${YOLO_CODE_PORT:-8080}:8080
+      - ${YOLO_BIND_ADDRESS:-127.0.0.1}:${YOLO_TERMINAL_PORT:-7681}:7681
+
+volumes:
+  yolo-agent-home:
+    name: ${YOLO_HOME_VOLUME:-yolo-agent-home-v7}
