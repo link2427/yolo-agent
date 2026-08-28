@@ -19,8 +19,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Validate shell scripts
         run: |
-          find bin docker -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
-          find bin docker -type f -name '*.sh' -print0 | xargs -0 shellcheck
+          find bin docker scripts -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
+          find bin docker scripts -type f -name '*.sh' -print0 | xargs -0 shellcheck
       - name: Validate Bake graph
         run: docker buildx bake --print >/dev/null
 

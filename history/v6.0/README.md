@@ -2,7 +2,7 @@
 
 The exact recovered source tree is commit
 `eda4727c79d4152280c436defdb10ad0bf4c728d`, tagged
-`v6.0.0-recovered` and `recovery-2026-08-18`.
+`archive-yolo-dev-6.0-recovered` and `recovery-2026-08-18`.
 
 `bundle-metadata/` records the original Container Forge export. The excluded
 Docker archive has SHA-256

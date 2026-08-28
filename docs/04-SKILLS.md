@@ -1,8 +1,8 @@
 # 04 — Skills: 30 curated defaults + a 920-skill library
 
-**v6 change:** the container now loads only **30 curated coding skills** by
+The container loads only **30 curated coding skills** by
 default — the ~120k tokens of skill descriptions that goose injected at
-session start in v5 are gone. The full **library (920 skills)** stays in the
+session start from the recovered builds are gone. The full **library (920 skills)** stays in the
 image at `/opt/skills` (read-only, unloaded) and is also shipped as a separate
 zip export.
 

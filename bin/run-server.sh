@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-IMAGE="${YOLO_IMAGE:-yolo-agent:7.0.0}"
+IMAGE="${YOLO_IMAGE:-yolo-agent:1.0.0}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="${YOLO_ENV_FILE:-$ROOT/config/yolo.env}"
-HOME_VOLUME="${YOLO_HOME_VOLUME:-yolo-agent-home-v7}"
+HOME_VOLUME="${YOLO_HOME_VOLUME:-yolo-agent-home-v1}"
 BIND_ADDRESS="${YOLO_BIND_ADDRESS:-127.0.0.1}"
 
 [[ -f "$ENV_FILE" ]] || {

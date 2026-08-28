@@ -5,20 +5,50 @@ on:
     tags: ['v*']
 
 permissions:
-  contents: read
+  contents: write
   packages: write
   id-token: write
 
+concurrency:
+  group: container-release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
+  prepare-release:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Create GitHub release
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --latest
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              --repo "$GITHUB_REPOSITORY" \
+              --verify-tag \
+              --latest \
+              --title "yolo-agent $version" \
+              --notes "Ready-to-burn full and headless offline bundles are attached. Each ZIP contains a Docker-loadable image archive, launchers, configuration, documentation, exact loading instructions, and checksums."
+          fi
+
   publish:
+    needs: prepare-release
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - target: runtime-full
+          - profile: full
+            target: runtime-full
             flavor: latest=auto
-          - target: runtime-headless
+            tag_suffix: ''
+          - profile: headless
+            target: runtime-headless
             flavor: suffix=-headless,onlatest=true
+            tag_suffix: -headless
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
@@ -47,7 +77,27 @@ jobs:
           build-args: |
             VERSION=${{ steps.meta.outputs.version }}
             VCS_REF=${{ github.sha }}
-          cache-from: type=gha,scope=${{ matrix.target }}
+          cache-from: |
+            type=gha,scope=container-ci
+            type=gha,scope=${{ matrix.target }}
           cache-to: type=gha,mode=max,scope=${{ matrix.target }}
           provenance: mode=max
           sbom: true
+      - name: Free BuildKit cache before offline export
+        run: docker buildx prune --all --force
+      - name: Create offline ZIP bundle
+        env:
+          RELEASE_VERSION: ${{ github.ref_name }}
+          PROFILE: ${{ matrix.profile }}
+          TAG_SUFFIX: ${{ matrix.tag_suffix }}
+        run: |
+          version="${RELEASE_VERSION#v}"
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/yolo-agent:${version}${TAG_SUFFIX}"
+          ./scripts/package-offline.sh "$version" "$PROFILE" "$image" dist
+      - name: Upload offline bundle to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "$GITHUB_REF_NAME" dist/*.zip dist/*.zip.sha256 \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber

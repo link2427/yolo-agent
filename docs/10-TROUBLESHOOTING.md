@@ -13,13 +13,13 @@
 | Push to Gitea prompts for password | Credentials not configured | Check `GITEA_*` in yolo.env; verify `~/.git-credentials` exists (token mode) or key added to Gitea (SSH mode); relaunch so `configure-git.sh` re-runs |
 | Ports 8080/7681 already in use | Another service | `docker rm -f yolo-agent-server`, free the ports, or set `YOLO_CODE_PORT` / `YOLO_TERMINAL_PORT` |
 | Container exits immediately (interactive) | Exit code from the shell | That's normal for `--rm` interactive mode; run `./bin/run.sh` again |
-| Skills missing | Stale home volume | Use a fresh `yolo-agent-home-v7` volume, or run `/opt/yolo/make-skill-farm.sh` (rebuilds the symlink farm from `/opt/skills`) |
+| Skills missing | Stale home volume | Use a fresh `yolo-agent-home-v1` volume, or run `/opt/yolo/make-skill-farm.sh` (rebuilds the symlink farm from `/opt/skills`) |
 
 ## Upgrading from an older version
 
-- v1→v5 volumes are intentionally **not** reused: each release uses a new
-  volume name (`yolo-agent-home-v7` for 5.0). Old volumes can be removed:
-  `docker volume rm yolo-agent-home-v7` (etc.).
+- The 1.x release line uses `yolo-agent-home-v1`. Back it up before removing
+  it; `docker volume rm yolo-agent-home-v1` permanently deletes agent
+  sessions and home-directory state.
 - A stale volume will not receive newly baked content (skills, prime-agent
   kernel, configs). Either start fresh (recommended) or run
   `/opt/yolo/configure-agents.sh` + `/opt/yolo/make-skill-farm.sh` to refresh
@@ -30,7 +30,7 @@
 
 | Symptom | Fix |
 |---------|-----|
-| `prime-agent` starts but no kernel | Check `~/.prime/agent/kernel-venv/bin/python -c "import ipykernel, rlm"`; if missing, the volume predates v3 — use a fresh `yolo-agent-home-v7` |
+| `prime-agent` starts but no kernel | Check `~/.prime/agent/kernel-venv/bin/python -c "import ipykernel, rlm"`; if missing, back up the volume and retry with a fresh `yolo-agent-home-v1` |
 | Headless run wants network | Use `--offline` for non-provider startup operations |
 | Autonomous mode off | Interactive mode is prompt-less by design; use `prime-agent --autonomous "task"` for bounded self-driving |
 

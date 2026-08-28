@@ -1,5 +1,13 @@
 # 02 — Quickstart
 
+## Offline/disc installation
+
+Download the `full-offline.zip` or `headless-offline.zip` asset from the
+GitHub release, copy it to the disc, unzip it on the destination, and follow
+`LOAD-OFFLINE.txt`. The bundle includes the Docker image, its checksum,
+launchers, runtime configuration, and these docs. No registry connection is
+needed after the image is loaded.
+
 ## 1. Configure runtime values
 
 ```bash

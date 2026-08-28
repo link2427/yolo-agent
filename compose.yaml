@@ -1,5 +1,5 @@
 x-yolo-agent: &yolo-agent
-  image: ${YOLO_IMAGE:-yolo-agent:7.0.0}
+  image: ${YOLO_IMAGE:-yolo-agent:1.0.0}
   user: "10001:10001"
   read_only: true
   cap_drop:
@@ -41,4 +41,4 @@ services:
 
 volumes:
   yolo-agent-home:
-    name: ${YOLO_HOME_VOLUME:-yolo-agent-home-v7}
+    name: ${YOLO_HOME_VOLUME:-yolo-agent-home-v1}

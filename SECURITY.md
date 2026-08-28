@@ -6,7 +6,7 @@ containers, or persist anything in the image. Containment is the goal —
 this does **not** protect the workspace itself, and a kernel/containerd
 0-day is always the residual risk. Keep the destination engine patched.
 
-**v2/v3 YOLO note:** agents never ask permission (opencode `"permission":
+**YOLO-mode note:** agents never ask permission (opencode `"permission":
 "allow"`, goose `GOOSE_MODE: auto`, aider `yes-always: true`, pi and
 prime-agent have no permission-prompt system by design). That is safe *only
 because* the container boundary below is the real sandbox — never run these
@@ -85,7 +85,7 @@ These cannot be baked into the image; they are the actual security boundary.
 ## Verification after `docker load`
 
 ```bash
-docker run --rm --read-only --tmpfs /tmp --user 10001:10001 --entrypoint sh yolo-agent:7.0.0 -c \
+docker run --rm --read-only --tmpfs /tmp --user 10001:10001 --entrypoint sh yolo-agent:1.0.0 -c \
   'id; command -v sudo || echo "no sudo"; find / -xdev -perm /6000 2>/dev/null | wc -l; \
    ls ~/.agents/skills | wc -l; jq -r .permission ~/.config/opencode/opencode.json'
 # expect: uid=10001(agent) ... / no sudo / 0 / >400 / allow

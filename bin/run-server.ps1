@@ -1,13 +1,13 @@
 [CmdletBinding(PositionalBinding = $false)]
 param(
-    [string]$Image = $(if ($env:YOLO_IMAGE) { $env:YOLO_IMAGE } else { "yolo-agent:7.0.0" })
+    [string]$Image = $(if ($env:YOLO_IMAGE) { $env:YOLO_IMAGE } else { "yolo-agent:1.0.0" })
 )
 
 $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $envFile = if ($env:YOLO_ENV_FILE) { $env:YOLO_ENV_FILE } else { Join-Path $repoRoot "config\yolo.env" }
 $seccomp = Join-Path $repoRoot "config\seccomp-yolo.json"
-$homeVolume = if ($env:YOLO_HOME_VOLUME) { $env:YOLO_HOME_VOLUME } else { "yolo-agent-home-v7" }
+$homeVolume = if ($env:YOLO_HOME_VOLUME) { $env:YOLO_HOME_VOLUME } else { "yolo-agent-home-v1" }
 $memory = if ($env:YOLO_MEM) { $env:YOLO_MEM } else { "8g" }
 $cpus = if ($env:YOLO_CPUS) { $env:YOLO_CPUS } else { "4" }
 $bindAddress = if ($env:YOLO_BIND_ADDRESS) { $env:YOLO_BIND_ADDRESS } else { "127.0.0.1" }

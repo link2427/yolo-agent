@@ -32,8 +32,8 @@ Both profiles use uid 10001 and the same persistent home-volume layout.
 ## Version lineage
 
 - 5.0 survives only as documents and export metadata in history/v5.0.
-- 6.0 is the exact recovered source at tag v6.0.0-recovered.
-- 7.0 is the reorganized source-first build with full/headless profiles,
+- 6.0 is the exact recovered source at tag archive-yolo-dev-6.0-recovered.
+- 1.0 begins the reorganized source-first build with full/headless profiles,
   Docker Bake, Compose, CI, and tagged GHCR releases.
 
 See CHANGELOG.md and history/README.md for the recovery boundary.

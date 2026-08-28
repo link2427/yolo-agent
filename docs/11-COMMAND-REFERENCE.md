@@ -70,7 +70,7 @@ detaching.)
 | Path | What |
 |------|------|
 | `/workspace` | The mounted working directory (agents work here) |
-| `/home/agent` | Home (volume `yolo-agent-home-v7`): configs, skills farm, git creds, sessions |
+| `/home/agent` | Home (volume `yolo-agent-home-v1`): configs, skills farm, git creds, sessions |
 | `/opt/skills` | Read-only skills library (root-owned) |
 | `/opt/yolo` | Runtime configurators, supervisor, docs, and seccomp profile |
 | `/opt/code-server` | code-server install |

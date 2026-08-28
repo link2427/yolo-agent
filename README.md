@@ -27,13 +27,30 @@ docker buildx bake
 docker buildx bake images
 
 # Build one profile directly.
-docker build --target runtime-headless -t yolo-agent:7.0.0-headless .
-docker build --target runtime-full -t yolo-agent:7.0.0 .
+docker build --target runtime-headless -t yolo-agent:1.0.0-headless .
+docker build --target runtime-full -t yolo-agent:1.0.0 .
 ```
 
 Each installer is isolated under `docker/install/`, so changes to the web IDE
 do not invalidate the agent or skills layers. Published tags are produced by
 GitHub Actions when a `v*` tag is pushed.
+
+## Offline release bundles
+
+Each release attaches two ready-to-burn ZIP files:
+
+- `yolo-agent-<version>-full-offline.zip`
+- `yolo-agent-<version>-headless-offline.zip`
+
+Each ZIP contains a Docker-loadable image archive, Linux and Windows
+launchers, Compose configuration, the seccomp policy, public-safe environment
+template, documentation, exact offline loading instructions, source commit,
+image metadata, and SHA-256 checksums. The ZIP itself has a separate
+`.zip.sha256` release asset.
+
+The ZIP uses store mode because Docker image layers are already compressed.
+After downloading, unzip it and follow `LOAD-OFFLINE.txt`; no registry or
+internet connection is required after `docker load`.
 
 ## Run
 
@@ -64,7 +81,7 @@ on a trusted network. The legacy cross-platform launchers remain in `bin/`.
 
 ## Persistence
 
-`yolo-agent-home-v7` retains agent sessions, tools installed into the user
+`yolo-agent-home-v1` retains agent sessions, tools installed into the user
 home, SSH configuration, and terminal state. The selected project directory
 is bind-mounted at `/workspace`. Closing a browser tab does not end the tmux
 session; deleting the named volume does delete the persisted agent home.
@@ -82,15 +99,16 @@ docs/                      current operator documentation
 history/                   recovered v5/v6 provenance (no large archives)
 compose.yaml               hardened local runtime
 docker-bake.hcl            repeatable build matrix
-.github/workflows/         CI and tagged GHCR releases
+.github/workflows/         CI, GHCR publishing, and offline release bundles
 ```
 
 ## Recovered versions
 
-- `v6.0.0-recovered` is the exact complete source recovered from the backup.
+- `archive-yolo-dev-6.0-recovered` preserves the exact recovered source as
+  imported history, outside the new semantic-version sequence.
 - `history/v5.0/` is a partial snapshot because the 5.0 Docker build context
   did not survive. Its original image checksum and build log are retained.
-- `v7.0.0` is the reorganized, source-first repository line.
+- `v1.0.0` begins the reorganized, source-first release line.
 
 Large `.docker.tar` and skill-library `.zip` exports are intentionally not
 committed. See `history/README.md` and `CHANGELOG.md`.

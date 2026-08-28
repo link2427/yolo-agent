@@ -1,4 +1,4 @@
-# yolo-agent 7.0 documentation
+# yolo-agent 1.0 documentation
 
 | Document | Purpose |
 | --- | --- |
@@ -16,3 +16,6 @@
 
 These docs are copied into /opt/yolo/docs in both image profiles. Historical
 5.0 documentation is kept separately under history/v5.0/docs.
+
+Tagged releases also provide full and headless offline ZIP bundles containing
+Docker-loadable archives, launchers, configuration templates, and checksums.
