@@ -39,7 +39,7 @@ for entry in "${SKILLS[@]}"; do
   curl -fsSL --max-time 600 -o "/tmp/$name.tgz" \
     "https://codeload.github.com/$repo/tar.gz/$commit"
   verify_sha256 "$sha" "/tmp/$name.tgz"
-  rm -rf "$SKILLS_ROOT/$name"
+  rm -rf "${SKILLS_ROOT:?}/$name"
   mkdir -p "$SKILLS_ROOT/$name"
   tar -xzf "/tmp/$name.tgz" -C "$SKILLS_ROOT/$name" --strip-components=1
   rm -f "/tmp/$name.tgz"
