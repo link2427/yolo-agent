@@ -17,7 +17,7 @@ prime-agent --version 2>&1 | grep -Fq "$PRIME_AGENT_VERSION"
 node --version 2>&1 | grep -q '^v22'
 python3 --version 2>&1 | grep -q '3\.11'
 
-for tool in git curl jq rg fdfind shellcheck tmux vim unzip xz tini; do
+for tool in git curl jq rg fdfind shellcheck tmux vi unzip xz tini; do
   command -v "$tool" >/dev/null
 done
 
