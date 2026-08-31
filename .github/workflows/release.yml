@@ -31,7 +31,7 @@ jobs:
               --verify-tag \
               --latest \
               --title "yolo-agent $version" \
-              --notes "Ready-to-burn full and headless offline bundles are attached. Each ZIP contains a Docker-loadable image archive, launchers, configuration, documentation, exact loading instructions, and checksums."
+              --notes "Ready-to-burn full and headless offline bundles are attached. Each ZIP contains a Docker-loadable image archive, launchers, configuration, documentation, exact loading instructions, and checksums. If a ZIP exceeds GitHub's 2 GiB asset limit, download all of its numbered parts and follow the attached REASSEMBLE instructions."
           fi
 
   publish:
@@ -98,6 +98,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload "$GITHUB_REF_NAME" dist/*.zip dist/*.zip.sha256 \
+          gh release upload "$GITHUB_REF_NAME" dist/* \
             --repo "$GITHUB_REPOSITORY" \
             --clobber

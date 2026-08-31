@@ -48,9 +48,11 @@ template, documentation, exact offline loading instructions, source commit,
 image metadata, and SHA-256 checksums. The ZIP itself has a separate
 `.zip.sha256` release asset.
 
-The ZIP uses store mode because Docker image layers are already compressed.
-After downloading, unzip it and follow `LOAD-OFFLINE.txt`; no registry or
-internet connection is required after `docker load`.
+The ZIP uses maximum compression to stay within GitHub's asset limit. If a
+bundle still exceeds 2 GiB, the release contains numbered ZIP parts and a
+`REASSEMBLE.txt` file; download every part and follow those instructions.
+After downloading or reassembling, unzip it and follow `LOAD-OFFLINE.txt`; no
+registry or internet connection is required after `docker load`.
 
 ## Run
 
