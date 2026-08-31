@@ -73,6 +73,13 @@ contains it; nothing else does.
 **as the agent user**. On shared or internet-reachable networks, keep the
 localhost binding and use an authenticated reverse proxy or SSH tunnel.
 
+The opt-in DeepSeek Harness UI has the same trust level: it can execute agent
+tools against the mounted workspace. Its Compose route also publishes only to
+host loopback by default. The image keeps the upstream Harness listener on
+container loopback and uses a small relay solely because Docker cannot publish
+a container-loopback socket. Never expose port 3080 directly to an untrusted
+network.
+
 ## Git credentials
 
 Stored in the home volume only: `~/.git-credentials` (token, mode 600) or
@@ -88,7 +95,7 @@ compromised agent can't plant a malicious skill that survives a restart.
 ## Verification after load
 
 ```bash
-docker run --rm --read-only --tmpfs /tmp --user 10001:10001 --entrypoint sh yolo-agent:1.0.0 -c \
+docker run --rm --read-only --tmpfs /tmp --user 10001:10001 --entrypoint sh yolo-agent:1.1.0 -c \
   'id; command -v sudo || echo "no sudo"; find / -xdev -perm /6000 2>/dev/null | wc -l; \
    ls ~/.agents/skills | wc -l; jq -r .permission ~/.config/opencode/opencode.json'
 # expect: uid=10001(agent) ... / no sudo / 0 / 924 / allow

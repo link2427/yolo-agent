@@ -85,7 +85,7 @@ These cannot be baked into the image; they are the actual security boundary.
 ## Verification after `docker load`
 
 ```bash
-docker run --rm --read-only --tmpfs /tmp --user 10001:10001 --entrypoint sh yolo-agent:1.0.0 -c \
+docker run --rm --read-only --tmpfs /tmp --user 10001:10001 --entrypoint sh yolo-agent:1.1.0 -c \
   'id; command -v sudo || echo "no sudo"; find / -xdev -perm /6000 2>/dev/null | wc -l; \
    ls ~/.agents/skills | wc -l; jq -r .permission ~/.config/opencode/opencode.json'
 # expect: uid=10001(agent) ... / no sudo / 0 / >400 / allow
@@ -111,6 +111,12 @@ Everything the browser needs is **baked at build time** — extensions are
 pre-installed from Open VSX (the locked runtime has no open-vsx.org egress),
 and code-server's update check is disabled, so the server never phones home.
 Installed extension versions: `/opt/yolo/EXTENSIONS-MANIFEST.txt`.
+
+The opt-in DeepSeek Harness UI (:3080) is equally sensitive because it can run
+agent tools against the mounted workspace. It defaults to host loopback. The
+container-side relay exists only to bridge upstream Harness's loopback socket
+to Docker publishing; it is not authentication. Never expose it directly to
+an untrusted network.
 
 ## Git credentials
 

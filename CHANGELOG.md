@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.1.0 - 2026-08-30
+
+- Added the official DeepSeek Harness (`dsh`) developer preview, pinned through
+  a committed pnpm lockfile and verified during the image build.
+- Added persistent headless and browser workflows; Harness state lives in the
+  existing agent-home volume and `DEEPSEEK_API_KEY` stays runtime-only.
+- Added an opt-in Compose browser service on host-loopback port 3080 without
+  patching DeepSeek Harness's upstream loopback-only safety policy.
+- Added image smoke tests for the Harness CLI and runtime environment.
+- Compressed offline bundles and added automatic multipart fallback for
+  GitHub's 2 GiB release-asset limit.
+
 ## 1.0.0 - 2026-08-28
 
 - Renamed the project from `yolo-dev` to `yolo-agent`.

@@ -4,9 +4,10 @@ A persistent Linux/amd64 environment for autonomous coding agents, recovered
 from the original Container Forge workspace and reorganized into a reproducible
 Docker build.
 
-It includes opencode, goose, pi, aider, and Prime Agent. The full profile also
-includes code-server, a persistent ttyd/tmux terminal, and the pinned skills
-library. Runtime credentials are supplied only through an ignored env file.
+It includes opencode, goose, pi, aider, Prime Agent, and DeepSeek Harness. The
+full profile also includes code-server, a persistent ttyd/tmux terminal, and
+the pinned skills library. Runtime credentials are supplied only through an
+ignored env file.
 
 ## Images
 
@@ -27,8 +28,8 @@ docker buildx bake
 docker buildx bake images
 
 # Build one profile directly.
-docker build --target runtime-headless -t yolo-agent:1.0.0-headless .
-docker build --target runtime-full -t yolo-agent:1.0.0 .
+docker build --target runtime-headless -t yolo-agent:1.1.0-headless .
+docker build --target runtime-full -t yolo-agent:1.1.0 .
 ```
 
 Each installer is isolated under `docker/install/`, so changes to the web IDE
@@ -71,12 +72,16 @@ docker compose run --rm agent
 
 # Persistent browser IDE and tmux terminal.
 docker compose --profile server up -d server
+
+# Persistent DeepSeek Harness browser UI (uses DEEPSEEK_API_KEY from yolo.env).
+docker compose --profile deepseek up -d deepseek
 ```
 
 The safe default binds browser ports only to localhost:
 
 - code-server: `http://127.0.0.1:8080`
 - ttyd/tmux: `http://127.0.0.1:7681`
+- DeepSeek Harness: `http://127.0.0.1:3080`
 
 Set `YOLO_BIND_ADDRESS=0.0.0.0` only behind an authenticated reverse proxy or
 on a trusted network. The legacy cross-platform launchers remain in `bin/`.
@@ -87,6 +92,8 @@ on a trusted network. The legacy cross-platform launchers remain in `bin/`.
 home, SSH configuration, and terminal state. The selected project directory
 is bind-mounted at `/workspace`. Closing a browser tab does not end the tmux
 session; deleting the named volume does delete the persisted agent home.
+DeepSeek Harness stores its profiles and sessions under `~/.dsh` in that same
+volume, while project files remain in `/workspace`.
 
 ## Repository layout
 

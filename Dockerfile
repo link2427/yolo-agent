@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.12
 
 ARG NODE_IMAGE=node:22-bookworm-slim@sha256:4d676821dff059fd00d277ee4261ef34ea712317fed0737c03941481b5760c96
-ARG VERSION=1.0.0
+ARG VERSION=1.1.0
 ARG VCS_REF=unknown
 
 # Shared system toolchain. The digest is the linux/amd64 Node 22 Bookworm-slim
@@ -13,6 +13,7 @@ ARG GOOSE_VERSION=1.45.0
 ARG PI_VERSION=0.83.0
 ARG AIDER_VERSION=0.86.2
 ARG PRIME_AGENT_VERSION=0.7.2
+ARG DSH_VERSION=0.1.1-rc.2
 
 LABEL org.opencontainers.image.title="yolo-agent" \
       org.opencontainers.image.description="Persistent, locked-down autonomous coding-agent environment" \
@@ -23,7 +24,7 @@ RUN apt-get update \
       python3 python3-pip python3-venv \
       git openssh-client curl ca-certificates \
       build-essential pkg-config \
-      jq ripgrep fd-find shellcheck tmux vim-tiny unzip xz-utils tini \
+      jq ripgrep fd-find shellcheck tmux vim-tiny unzip xz-utils tini socat \
  && rm -rf /var/lib/apt/lists/* \
  && apt-get clean
 
@@ -35,6 +36,7 @@ ARG GOOSE_VERSION
 ARG PI_VERSION
 ARG AIDER_VERSION
 ARG PRIME_AGENT_VERSION
+ARG DSH_VERSION
 
 RUN useradd --create-home --uid 10001 --home-dir /home/agent --shell /bin/bash agent
 
@@ -51,6 +53,16 @@ RUN HOME=/home/agent PRIME_AGENT_VERSION="${PRIME_AGENT_VERSION}" \
     bash /tmp/install-prime-agent.sh \
  && rm -f /tmp/install-prime-agent.sh
 
+# DeepSeek Harness is independently cached because its npm plugin graph is
+# large and changes independently from the other agents.
+FROM toolchain AS deepseek-harness
+ARG DSH_VERSION
+COPY docker/install/deepseek-harness/ /tmp/deepseek-harness/
+COPY docker/install/install-deepseek-harness.sh /tmp/install-deepseek-harness.sh
+COPY docker/install/dsh-wrapper.sh /tmp/dsh-wrapper.sh
+RUN DSH_VERSION="${DSH_VERSION}" bash /tmp/install-deepseek-harness.sh \
+ && rm -rf /tmp/install-deepseek-harness /tmp/install-deepseek-harness.sh /tmp/dsh-wrapper.sh
+
 # Optional, independently cached feature layers.
 FROM toolchain AS skills-library
 COPY docker/install/install-skills.sh /tmp/install-skills.sh
@@ -63,7 +75,7 @@ RUN HOME=/home/agent bash /tmp/install-web-ide.sh && rm -f /tmp/install-web-ide.
 # Small headless runtime. It includes every agent but omits the large skills
 # library and browser IDE. The same persisted home volume works with both
 # profiles.
-FROM toolchain AS runtime-common
+FROM deepseek-harness AS runtime-common
 
 RUN find / -xdev -type f -perm /6000 -exec chmod u-s,g-s {} \; 2>/dev/null || true
 RUN mkdir -p /workspace /opt/yolo
@@ -85,6 +97,7 @@ ENV LANG=C.UTF-8 \
     PI_SKIP_VERSION_CHECK=1 \
     PI_TELEMETRY=0 \
     PRIME_AGENT_TELEMETRY=0 \
+    DSH_HOME=/home/agent/.dsh \
     PATH=/home/agent/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 VOLUME ["/workspace", "/home/agent", "/tmp"]
@@ -130,12 +143,14 @@ ARG GOOSE_VERSION
 ARG PI_VERSION
 ARG AIDER_VERSION
 ARG PRIME_AGENT_VERSION
+ARG DSH_VERSION
 COPY --chmod=0755 docker/tests/smoke-common.sh /tmp/smoke-common.sh
 RUN OPENCODE_VERSION="${OPENCODE_VERSION}" \
     GOOSE_VERSION="${GOOSE_VERSION}" \
     PI_VERSION="${PI_VERSION}" \
     AIDER_VERSION="${AIDER_VERSION}" \
     PRIME_AGENT_VERSION="${PRIME_AGENT_VERSION}" \
+    DSH_VERSION="${DSH_VERSION}" \
     /tmp/smoke-common.sh
 
 FROM runtime-full AS test-full
@@ -144,12 +159,14 @@ ARG GOOSE_VERSION
 ARG PI_VERSION
 ARG AIDER_VERSION
 ARG PRIME_AGENT_VERSION
+ARG DSH_VERSION
 COPY --chmod=0755 docker/tests/smoke-common.sh docker/tests/smoke-full.sh /tmp/
 RUN OPENCODE_VERSION="${OPENCODE_VERSION}" \
     GOOSE_VERSION="${GOOSE_VERSION}" \
     PI_VERSION="${PI_VERSION}" \
     AIDER_VERSION="${AIDER_VERSION}" \
     PRIME_AGENT_VERSION="${PRIME_AGENT_VERSION}" \
+    DSH_VERSION="${DSH_VERSION}" \
     /tmp/smoke-common.sh \
  && /tmp/smoke-full.sh
 

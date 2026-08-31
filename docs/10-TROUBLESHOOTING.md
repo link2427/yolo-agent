@@ -11,7 +11,7 @@
 | Model id unknown | Wrong model string | `curl $VLLM_BASE_URL/models` and use an exact served id |
 | Extension install fails in-code-server | Runtime has no open-vsx.org egress (by design) | Install at build time; extensions already ship pre-installed (see 05) |
 | Push to Gitea prompts for password | Credentials not configured | Check `GITEA_*` in yolo.env; verify `~/.git-credentials` exists (token mode) or key added to Gitea (SSH mode); relaunch so `configure-git.sh` re-runs |
-| Ports 8080/7681 already in use | Another service | `docker rm -f yolo-agent-server`, free the ports, or set `YOLO_CODE_PORT` / `YOLO_TERMINAL_PORT` |
+| Ports 8080/7681/3080 already in use | Another service | Stop the conflicting service, or set `YOLO_CODE_PORT`, `YOLO_TERMINAL_PORT`, or `DSH_WEB_PORT` |
 | Container exits immediately (interactive) | Exit code from the shell | That's normal for `--rm` interactive mode; run `./bin/run.sh` again |
 | Skills missing | Stale home volume | Use a fresh `yolo-agent-home-v1` volume, or run `/opt/yolo/make-skill-farm.sh` (rebuilds the symlink farm from `/opt/skills`) |
 
@@ -33,6 +33,15 @@
 | `prime-agent` starts but no kernel | Check `~/.prime/agent/kernel-venv/bin/python -c "import ipykernel, rlm"`; if missing, back up the volume and retry with a fresh `yolo-agent-home-v1` |
 | Headless run wants network | Use `--offline` for non-provider startup operations |
 | Autonomous mode off | Interactive mode is prompt-less by design; use `prime-agent --autonomous "task"` for bounded self-driving |
+
+## DeepSeek Harness
+
+| Symptom | Fix |
+|---------|-----|
+| UI cannot reach a model | Put `DEEPSEEK_API_KEY` in ignored `config/yolo.env`, recreate only the `deepseek` Compose service, and select the DeepSeek model in Harness settings |
+| Browser cannot reach port 3080 | Run `docker compose --profile deepseek up -d deepseek`, then inspect `docker compose logs deepseek`; override a conflict with `DSH_WEB_PORT` |
+| `--expose-internals is required for HMR service` | Use the image's `/usr/local/bin/dsh` wrapper. Do not invoke the package's `lib/bin.js` directly unless using `node --expose-internals`; this is an upstream rc.2 loader bug |
+| Sessions disappeared | Confirm the service still mounts `yolo-agent-home-v1:/home/agent`; Harness persists under `~/.dsh` |
 
 ## Web IDE
 

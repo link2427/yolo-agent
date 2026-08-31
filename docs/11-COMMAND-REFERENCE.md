@@ -13,6 +13,9 @@
 | Start aider (in a git repo) | `aider` |
 | Start prime-agent | `prime-agent` |
 | prime-agent headless YOLO | `prime-agent --autonomous --offline "task"` |
+| Start DeepSeek Harness UI | `docker compose --profile deepseek up -d deepseek` |
+| Run a DeepSeek Harness task | `dsh --profile headless "task"` |
+| Inspect DeepSeek Harness config | `dsh --profile headless --dump-config` |
 | prime-agent sessions | `prime-agent agents` · `prime-agent attach <id>` · `prime-agent --resume <id>` · `prime-agent status` |
 
 ## Configuration (auto-run on launch, manual anytime)
@@ -64,6 +67,7 @@ detaching.)
 |----------|-----|
 | code-server (VS Code) | `http://<host>:8080` |
 | ttyd (terminal) | `http://<host>:7681` |
+| DeepSeek Harness | `http://<host>:3080` |
 
 ## Inside the image
 
@@ -75,5 +79,7 @@ detaching.)
 | `/opt/yolo` | Runtime configurators, supervisor, docs, and seccomp profile |
 | `/opt/code-server` | code-server install |
 | `/opt/aider-venv` | aider's isolated Python venv |
+| `/opt/deepseek-harness` | Locked DeepSeek Harness npm installation |
+| `~/.dsh` | Persistent DeepSeek Harness profiles, settings, and sessions |
 | `/opt/prime…` → `~/.prime/agent/kernel-venv` | prime-agent's IPython kernel |
 | `/tmp/code-server.log`, `/tmp/ttyd.log` | Web server logs |

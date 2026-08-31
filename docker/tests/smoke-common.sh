@@ -6,6 +6,7 @@ set -euxo pipefail
 : "${PI_VERSION:?}"
 : "${AIDER_VERSION:?}"
 : "${PRIME_AGENT_VERSION:?}"
+: "${DSH_VERSION:?}"
 
 test "$(id -un)" = agent
 test "$(id -u)" = 10001
@@ -14,10 +15,12 @@ goose --version 2>&1 | grep -Fq "$GOOSE_VERSION"
 pi --version 2>&1 | grep -Fq "$PI_VERSION"
 aider --version 2>&1 | grep -Fq "$AIDER_VERSION"
 prime-agent --version 2>&1 | grep -Fq "$PRIME_AGENT_VERSION"
+dsh --version 2>&1 | grep -Fxq "$DSH_VERSION"
+dsh --profile headless --dump-default-config >/dev/null
 node --version 2>&1 | grep -q '^v22'
 python3 --version 2>&1 | grep -q '3\.11'
 
-for tool in git curl jq rg fdfind shellcheck tmux vi unzip xz tini; do
+for tool in git curl jq rg fdfind shellcheck tmux vi unzip xz tini socat dsh; do
   command -v "$tool" >/dev/null
 done
 
@@ -32,6 +35,7 @@ test -x "$HOME/.prime/agent/kernel-venv/bin/python"
 "$HOME/.prime/agent/kernel-venv/bin/python" -c 'import ipykernel, rlm'
 test -x "$HOME/.local/bin/uv"
 jq -e '.telemetry.enabled == false' "$HOME/.prime/agent/settings.json" >/dev/null
+test "$DSH_HOME" = "$HOME/.dsh"
 
 jq -e '.permission == "allow"' "$HOME/.config/opencode/opencode.json" >/dev/null
 jq -e '.defaultProjectTrust == "always"' "$HOME/.pi/agent/settings.json" >/dev/null

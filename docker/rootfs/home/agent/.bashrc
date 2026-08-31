@@ -1,4 +1,4 @@
-# yolo-dev agent profile
+# yolo-agent profile
 umask 077
 export EDITOR=vim
 
@@ -7,7 +7,7 @@ export EDITOR=vim
 # launch, and everything is ready — no manual step.
 if [[ -n "${VLLM_BASE_URL:-}" ]] && [[ -n "${VLLM_MODEL:-}" ]] \
    && ! grep -q '"provider"' "$HOME/.config/opencode/opencode.json" 2>/dev/null; then
-  echo ">> yolo-dev: configuring agents for $VLLM_BASE_URL ..."
+  echo ">> yolo-agent: configuring agents for $VLLM_BASE_URL ..."
   /opt/yolo/configure-agents.sh
 fi
 
@@ -15,15 +15,15 @@ fi
 # Re-runs each launch: yolo.env is the source of truth, so changing the token
 # or switching token<->SSH mode applies on the next launch.
 if [[ -n "${GITEA_HOST:-}" ]]; then
-  echo ">> yolo-dev: configuring git for $GITEA_HOST ..."
+  echo ">> yolo-agent: configuring git for $GITEA_HOST ..."
   /opt/yolo/configure-git.sh || true
 fi
 
 if [[ -t 0 ]]; then
   echo
-  echo "yolo-dev — local coding agents: opencode | pi | goose | aider | prime-agent"
+  echo "yolo-agent — opencode | pi | goose | aider | prime-agent | dsh"
   echo "  docs:   /opt/yolo/README.md   security: /opt/yolo/SECURITY.md"
   echo "  config: VLLM_BASE_URL/VLLM_MODEL in yolo.env -> auto-configured on launch"
-  echo "  web:    code-server :8080   terminal (ttyd+tmux) :7681   (server mode)"
+  echo "  web:    code-server :8080 | terminal :7681 | DeepSeek Harness :3080"
   echo
 fi

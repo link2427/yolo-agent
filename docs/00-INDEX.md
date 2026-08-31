@@ -1,4 +1,4 @@
-# yolo-agent 1.0 documentation
+# yolo-agent 1.x documentation
 
 | Document | Purpose |
 | --- | --- |

@@ -1,4 +1,4 @@
-# 03 — The five coding agents
+# 03 — The six coding agents
 
 All agents are pre-configured for an OpenAI-compatible endpoint (vLLM / LM
 Studio) and to **never ask permission**. Configs are generated automatically on
@@ -59,6 +59,22 @@ VLLM_BASE_URL=http://<host>:8000/v1 VLLM_MODEL=<model> /opt/yolo/configure-agent
   `prime-agent --resume <path|id>` / `prime-agent status`
 - Skills: reads `~/.agents/skills/` (auto), plus its built-in skills
   (`prime-intellect`, `skill-creator`, `websearch`).
+
+## DeepSeek Harness 0.1.1-rc.2
+
+- Official DeepSeek plugin-based agent harness, currently an upstream
+  developer preview; binary: `dsh`.
+- Runtime state, profiles, settings, and session logs persist under
+  `~/.dsh` (`DSH_HOME`) in the existing agent-home volume.
+- Browser UI: `docker compose --profile deepseek up -d deepseek`, then open
+  `http://127.0.0.1:3080`.
+- Headless task: `dsh --profile headless "inspect this repository"`.
+- Direct UI process inside a terminal: `dsh web` (upstream binds container
+  loopback; use the Compose service for a host-accessible loopback route).
+- Reads `DEEPSEEK_API_KEY` from the runtime environment. Put the key only in
+  ignored `config/yolo.env`; it is never baked into an image or archive.
+- The Harness can read/edit/run anything available to uid 10001 inside the
+  container, but receives no Docker socket, capabilities, sudo, or host root.
 
 ## Git identity for commits
 

@@ -6,3 +6,4 @@ Dockerfile text eol=lf
 *.yml text eol=lf
 *.json text eol=lf
 *.ps1 text eol=lf
+docker/rootfs/home/agent/.bashrc text eol=lf

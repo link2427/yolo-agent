@@ -50,3 +50,20 @@ docker rm -f yolo-agent-server          # remove
 ```
 
 Both services auto-respawn if they crash (supervisor: `/opt/yolo/server-start.sh`).
+
+## DeepSeek Harness UI
+
+DeepSeek Harness is a separate opt-in Compose service so its lifecycle does
+not affect code-server or terminal sessions:
+
+```bash
+docker compose --profile deepseek up -d deepseek
+docker compose logs -f deepseek
+```
+
+Open `http://127.0.0.1:3080` (override the host port with `DSH_WEB_PORT`).
+Upstream DeepSeek Harness intentionally binds only inside container loopback;
+`deepseek-web-start.sh` relays that listener to Docker without patching the
+Harness. Docker still publishes it to host loopback by default. Do not set
+`YOLO_BIND_ADDRESS=0.0.0.0` unless an authenticated reverse proxy or trusted
+network boundary protects it: an agent UI is a remote-code-execution surface.
