@@ -4,6 +4,8 @@
 
 - Removed the headless profile; the image is now a single always-on browser
   runtime (code-server, ttyd, OpenHands, and DeepSeek Harness all exposed).
+  `docker compose up -d` starts those browser services; the interactive
+  shell remains `docker compose run --rm agent`.
 - Added the current OpenHands CLI (1.16.0) web interface on port 3000, no
   Docker socket, pointed at the same vLLM endpoint as the other agents.
 - Bumped agent harnesses to current releases: opencode 1.18.27, goose 1.48.0,

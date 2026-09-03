@@ -2,7 +2,7 @@
 
 | Document | Purpose |
 | --- | --- |
-| [01-OVERVIEW.md](01-OVERVIEW.md) | Architecture, profiles, contents, and version lineage |
+| [01-OVERVIEW.md](01-OVERVIEW.md) | Architecture, contents, and version lineage |
 | [02-QUICKSTART.md](02-QUICKSTART.md) | Build, configure, and run locally |
 | [03-AGENTS.md](03-AGENTS.md) | Agent commands, configuration, and persistence |
 | [04-SKILLS.md](04-SKILLS.md) | Curated and full skill libraries |

@@ -1,10 +1,12 @@
 # 05 — Browser access (code-server + ttyd + OpenHands)
 
-`bin/run-server.sh` (or `docker compose up -d`) starts the container detached
-with three web endpoints. They have no application-level authentication by
-design, because this build targets an air-gapped internal network; ports are
-bound to `0.0.0.0` by default. Set `YOLO_BIND_ADDRESS=127.0.0.1` to bind
-host-loopback instead.
+`bin/run-server.sh` starts the server container detached with three web
+endpoints. `docker compose up -d` starts that stack plus DeepSeek Harness
+(:3080). They have no application-level authentication by design, because
+this build targets an air-gapped internal network; ports are bound to
+`0.0.0.0` by default. Set `YOLO_BIND_ADDRESS=127.0.0.1` to bind
+host-loopback instead. The interactive shell is `docker compose run --rm
+agent`; it is not started by `up -d`.
 
 | Service | URL | What it is |
 |---------|-----|------------|

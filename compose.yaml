@@ -27,8 +27,11 @@ x-yolo-agent: &yolo-agent
 # exposed on the internal network by default (this build is meant for an
 # air-gapped LAN with no external reach).
 services:
+  # Interactive shell only. `docker compose run --rm agent` enables this
+  # profile automatically; `docker compose up -d` does not start it.
   agent:
     <<: *yolo-agent
+    profiles: [cli]
     stdin_open: true
     tty: true
     command: /bin/bash -l

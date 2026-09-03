@@ -70,7 +70,7 @@ VLLM_BASE_URL=http://<host>:8000/v1 VLLM_MODEL=<model> /opt/yolo/configure-agent
   `http://<host>:3080`.
 - Headless task: `dsh --profile headless "inspect this repository"`.
 - Direct UI process inside a terminal: `dsh web` (upstream binds container
-  loopback; use the Compose service for a host-accessible loopback route).
+  loopback; use the Compose `deepseek` service to publish it on the host).
 - Reads `DEEPSEEK_API_KEY` from the runtime environment. Put the key only in
   ignored `config/yolo.env`; it is never baked into an image or archive.
 - The Harness can read/edit/run anything available to uid 10001 inside the
