@@ -59,25 +59,27 @@ reach the model server).
 
 ## prime-agent kernel — important caveat
 
-Its persistent IPython kernel executes model-generated Python with the
+Its persistent Python kernel executes model-generated Python with the
 agent's user permissions. That's user-space process isolation for
 lifecycle/recovery — **not** a security sandbox. The container boundary
 contains it; nothing else does.
 
 ## Browser exposure tradeoff (server mode)
 
-`bin/run-server.sh` exposes code-server (:8080) and ttyd (:7681) with
-**no application-level authentication**. Host publishing defaults to
-`127.0.0.1`; anyone who can reach ports deliberately exposed with
-`YOLO_BIND_ADDRESS=0.0.0.0` gets a VS Code instance that can run commands
-**as the agent user**. On shared or internet-reachable networks, keep the
-localhost binding and use an authenticated reverse proxy or SSH tunnel.
+`bin/run-server.sh` (or `docker compose up -d`) exposes **code-server
+(:8080)**, **ttyd (:7681)**, and **OpenHands (:3000)** with no
+application-level authentication. This is deliberate: the build targets an
+air-gapped internal network, so host publishing defaults to `0.0.0.0`. A
+web UI that can execute commands **as the agent user** is a
+remote-code-execution surface, so keep these ports off any internet-facing
+host. Set `YOLO_BIND_ADDRESS=127.0.0.1` only if you need host-loopback.
 
-The opt-in DeepSeek Harness UI has the same trust level: it can execute agent
-tools against the mounted workspace. Its Compose route also publishes only to
-host loopback by default. The image keeps the upstream Harness listener on
-container loopback and uses a small relay solely because Docker cannot publish
-a container-loopback socket. Never expose port 3080 directly to an untrusted
+The DeepSeek Harness UI (:3080) has the same trust level: it can execute
+agent tools against the mounted workspace. `docker compose up -d` starts it
+alongside the other browser services, on the same internal-network bind.
+The image keeps the upstream Harness listener on container loopback and
+uses a small relay solely because Docker cannot publish a
+container-loopback socket. Never expose any of these to an untrusted
 network.
 
 ## Git credentials
@@ -95,7 +97,7 @@ compromised agent can't plant a malicious skill that survives a restart.
 ## Verification after load
 
 ```bash
-docker run --rm --read-only --tmpfs /tmp --user 10001:10001 --entrypoint sh yolo-agent:1.1.0 -c \
+docker run --rm --read-only --tmpfs /tmp --user 10001:10001 --entrypoint sh yolo-agent:1.2.0 -c \
   'id; command -v sudo || echo "no sudo"; find / -xdev -perm /6000 2>/dev/null | wc -l; \
    ls ~/.agents/skills | wc -l; jq -r .permission ~/.config/opencode/opencode.json'
 # expect: uid=10001(agent) ... / no sudo / 0 / 924 / allow

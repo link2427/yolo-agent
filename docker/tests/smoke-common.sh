@@ -7,6 +7,7 @@ set -euxo pipefail
 : "${AIDER_VERSION:?}"
 : "${PRIME_AGENT_VERSION:?}"
 : "${DSH_VERSION:?}"
+: "${OPENHANDS_VERSION:?}"
 
 test "$(id -un)" = agent
 test "$(id -u)" = 10001
@@ -17,6 +18,9 @@ aider --version 2>&1 | grep -Fq "$AIDER_VERSION"
 prime-agent --version 2>&1 | grep -Fq "$PRIME_AGENT_VERSION"
 dsh --version 2>&1 | grep -Fxq "$DSH_VERSION"
 dsh --profile headless --dump-default-config >/dev/null
+
+# OpenHands (current CLI, uv-managed Python 3.12 venv)
+/opt/openhands/bin/openhands --version | grep -Fq "$OPENHANDS_VERSION"
 node --version 2>&1 | grep -q '^v22'
 python3 --version 2>&1 | grep -q '3\.11'
 
@@ -32,7 +36,7 @@ test ! -w /opt
 test "$(find / -xdev -type f -perm /6000 2>/dev/null | wc -l)" -eq 0
 
 test -x "$HOME/.prime/agent/kernel-venv/bin/python"
-"$HOME/.prime/agent/kernel-venv/bin/python" -c 'import ipykernel, rlm'
+"$HOME/.prime/agent/kernel-venv/bin/python" -c 'import rlm, dill, numpy'
 test -x "$HOME/.local/bin/uv"
 jq -e '.telemetry.enabled == false' "$HOME/.prime/agent/settings.json" >/dev/null
 test "$DSH_HOME" = "$HOME/.dsh"

@@ -30,7 +30,7 @@
 
 | Symptom | Fix |
 |---------|-----|
-| `prime-agent` starts but no kernel | Check `~/.prime/agent/kernel-venv/bin/python -c "import ipykernel, rlm"`; if missing, back up the volume and retry with a fresh `yolo-agent-home-v1` |
+| `prime-agent` starts but no kernel | Check `~/.prime/agent/kernel-venv/bin/python -c "import rlm, dill, numpy"`; if missing, back up the volume and retry with a fresh `yolo-agent-home-v1` |
 | Headless run wants network | Use `--offline` for non-provider startup operations |
 | Autonomous mode off | Interactive mode is prompt-less by design; use `prime-agent --autonomous "task"` for bounded self-driving |
 
@@ -39,7 +39,7 @@
 | Symptom | Fix |
 |---------|-----|
 | UI cannot reach a model | Put `DEEPSEEK_API_KEY` in ignored `config/yolo.env`, recreate only the `deepseek` Compose service, and select the DeepSeek model in Harness settings |
-| Browser cannot reach port 3080 | Run `docker compose --profile deepseek up -d deepseek`, then inspect `docker compose logs deepseek`; override a conflict with `DSH_WEB_PORT` |
+| Browser cannot reach port 3080 | Run `docker compose up -d deepseek`, then inspect `docker compose logs deepseek`; override a conflict with `DSH_WEB_PORT` |
 | `--expose-internals is required for HMR service` | Use the image's `/usr/local/bin/dsh` wrapper. Do not invoke the package's `lib/bin.js` directly unless using `node --expose-internals`; this is an upstream rc.2 loader bug |
 | Sessions disappeared | Confirm the service still mounts `yolo-agent-home-v1:/home/agent`; Harness persists under `~/.dsh` |
 

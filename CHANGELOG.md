@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.2.0 - 2026-09-03
+
+- Removed the headless profile; the image is now a single always-on browser
+  runtime (code-server, ttyd, OpenHands, and DeepSeek Harness all exposed).
+  `docker compose up -d` starts those browser services; the interactive
+  shell remains `docker compose run --rm agent`.
+- Added the current OpenHands CLI (1.16.0) web interface on port 3000, no
+  Docker socket, pointed at the same vLLM endpoint as the other agents.
+- Bumped agent harnesses to current releases: opencode 1.18.27, goose 1.48.0,
+  pi 0.84.4, prime-agent 0.9.1, code-server 4.135.0. aider, ttyd, and
+  DeepSeek Harness remain at their current versions.
+- Collapsed the offline release bundle to a single full bundle.
+
 ## 1.1.0 - 2026-08-30
 
 - Added the official DeepSeek Harness (`dsh`) developer preview, pinned through

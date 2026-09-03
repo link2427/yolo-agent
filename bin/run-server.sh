@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-IMAGE="${YOLO_IMAGE:-yolo-agent:1.1.0}"
+IMAGE="${YOLO_IMAGE:-yolo-agent:1.2.0}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="${YOLO_ENV_FILE:-$ROOT/config/yolo.env}"
 HOME_VOLUME="${YOLO_HOME_VOLUME:-yolo-agent-home-v1}"
-BIND_ADDRESS="${YOLO_BIND_ADDRESS:-127.0.0.1}"
+BIND_ADDRESS="${YOLO_BIND_ADDRESS:-0.0.0.0}"
 
 [[ -f "$ENV_FILE" ]] || {
   echo "ERROR: $ENV_FILE missing; copy config/yolo.env.example to config/yolo.env" >&2
@@ -33,6 +33,7 @@ docker run -d --name yolo-agent-server --restart unless-stopped \
   --stop-timeout 30 \
   -p "$BIND_ADDRESS:${YOLO_CODE_PORT:-8080}:8080" \
   -p "$BIND_ADDRESS:${YOLO_TERMINAL_PORT:-7681}:7681" \
+  -p "$BIND_ADDRESS:${YOLO_OPENHANDS_PORT:-3000}:3000" \
   --env-file "$ENV_FILE" \
   --workdir /workspace \
   "$IMAGE" /opt/yolo/server-start.sh
@@ -40,4 +41,5 @@ docker run -d --name yolo-agent-server --restart unless-stopped \
 echo "yolo-agent server running:"
 echo "  VS Code: http://$BIND_ADDRESS:${YOLO_CODE_PORT:-8080}"
 echo "  Terminal: http://$BIND_ADDRESS:${YOLO_TERMINAL_PORT:-7681}"
+echo "  OpenHands: http://$BIND_ADDRESS:${YOLO_OPENHANDS_PORT:-3000}"
 echo "  Logs: docker logs -f yolo-agent-server"

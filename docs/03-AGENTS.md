@@ -1,4 +1,4 @@
-# 03 — The six coding agents
+# 03 — The coding agents
 
 All agents are pre-configured for an OpenAI-compatible endpoint (vLLM / LM
 Studio) and to **never ask permission**. Configs are generated automatically on
@@ -9,7 +9,7 @@ regenerated any time:
 VLLM_BASE_URL=http://<host>:8000/v1 VLLM_MODEL=<model> /opt/yolo/configure-agents.sh
 ```
 
-## opencode 1.18.13
+## opencode 1.18.27
 
 - Standalone binary; config `~/.config/opencode/opencode.json`
 - YOLO: `"permission": "allow"` — auto-approves every tool
@@ -17,7 +17,7 @@ VLLM_BASE_URL=http://<host>:8000/v1 VLLM_MODEL=<model> /opt/yolo/configure-agent
 - Sessions: resume with `opencode --continue` (or `/sessions`)
 - Skills: reads `~/.agents/skills/` (auto)
 
-## pi 0.83.0
+## pi 0.84.4
 
 - Standalone binary (earendil-works); configs `~/.pi/agent/settings.json` +
   `~/.pi/agent/models.json`
@@ -27,7 +27,7 @@ VLLM_BASE_URL=http://<host>:8000/v1 VLLM_MODEL=<model> /opt/yolo/configure-agent
 - Run: `pi --model vllm/<model>` or `pi` then `/model`
 - Sessions: `pi agents` / `pi attach <id>` / `pi --resume <id>`
 
-## goose 1.45.0
+## goose 1.48.0
 
 - Standalone binary; config `~/.config/goose/config.yaml`
 - YOLO: `GOOSE_MODE: auto` (fully autonomous); provider `openai` pointed at
@@ -45,14 +45,14 @@ VLLM_BASE_URL=http://<host>:8000/v1 VLLM_MODEL=<model> /opt/yolo/configure-agent
 - Reads `OPENAI_API_KEY` from the environment if your endpoint requires auth.
 - No skills support (markdown skills are not loaded by aider).
 
-## prime-agent 0.7.2
+## prime-agent 0.9.1
 
 - Prime Intellect agent (pi lineage); configs `~/.prime/agent/models.json` +
   `~/.prime/agent/settings.json` (telemetry off)
-- **Kernel**: persistent IPython runtime, pre-bootstrapped at build time —
-  uv → Python 3.11 → `~/.prime/agent/kernel-venv` (ipykernel +
-  `prime-agent-runtime` (rlm) + dill + requests/httpx/pyyaml/tomli/dotenv/
-  pandas/numpy/scipy/bs4/lxml/pydantic/tyro). No first-run downloads.
+- **Kernel**: persistent Python runtime, pre-bootstrapped at build time —
+  uv → Python 3.11 → `~/.prime/agent/kernel-venv` (`prime-agent-runtime`
+  (rlm) + dill + requests/httpx/pyyaml/tomli/dotenv/pandas/numpy/scipy/
+  bs4/lxml/pydantic/tyro). No first-run downloads.
 - YOLO: no permission-prompt system; headless autonomous runs use
   `prime-agent --autonomous [--autonomous-gate …] --offline "task"`
 - Sessions/daemon: `prime-agent agents` / `prime-agent attach <agent>` /
@@ -66,15 +66,25 @@ VLLM_BASE_URL=http://<host>:8000/v1 VLLM_MODEL=<model> /opt/yolo/configure-agent
   developer preview; binary: `dsh`.
 - Runtime state, profiles, settings, and session logs persist under
   `~/.dsh` (`DSH_HOME`) in the existing agent-home volume.
-- Browser UI: `docker compose --profile deepseek up -d deepseek`, then open
-  `http://127.0.0.1:3080`.
+- Browser UI: `docker compose up -d deepseek`, then open
+  `http://<host>:3080`.
 - Headless task: `dsh --profile headless "inspect this repository"`.
 - Direct UI process inside a terminal: `dsh web` (upstream binds container
-  loopback; use the Compose service for a host-accessible loopback route).
+  loopback; use the Compose `deepseek` service to publish it on the host).
 - Reads `DEEPSEEK_API_KEY` from the runtime environment. Put the key only in
   ignored `config/yolo.env`; it is never baked into an image or archive.
 - The Harness can read/edit/run anything available to uid 10001 inside the
   container, but receives no Docker socket, capabilities, sudo, or host root.
+
+## OpenHands 1.16.0
+
+- Browser UI at `http://<host>:3000` via `openhands web` (no Docker socket)
+  inside the container. Installed as pip `openhands` in a uv-managed Python
+  3.12 venv at `/opt/openhands`.
+- Configured by `configure-openhands.sh` into `~/.openhands/agent_settings.json`
+  from the same VLLM_* values in yolo.env; conversations and settings persist
+  under `~/.openhands`.
+- Started by the server supervisor (`/opt/yolo/server-start.sh`); see 05.
 
 ## Git identity for commits
 

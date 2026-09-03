@@ -3,7 +3,7 @@ variable "REGISTRY" {
 }
 
 variable "VERSION" {
-  default = "1.1.0"
+  default = "1.2.0"
 }
 
 variable "VCS_REF" {
@@ -20,38 +20,24 @@ target "_common" {
   }
 }
 
-target "headless" {
+target "image" {
   inherits = ["_common"]
-  target   = "runtime-headless"
-  tags = [
-    "${REGISTRY}/yolo-agent:${VERSION}-headless",
-    "yolo-agent:${VERSION}-headless",
-  ]
-}
-
-target "full" {
-  inherits = ["_common"]
-  target   = "runtime-full"
+  target   = "runtime"
   tags = [
     "${REGISTRY}/yolo-agent:${VERSION}",
     "yolo-agent:${VERSION}",
   ]
 }
 
-target "test-headless" {
+target "test" {
   inherits = ["_common"]
-  target   = "test-headless"
-}
-
-target "test-full" {
-  inherits = ["_common"]
-  target   = "test-full"
+  target   = "test"
 }
 
 group "default" {
-  targets = ["test-headless", "test-full"]
+  targets = ["test"]
 }
 
 group "images" {
-  targets = ["headless", "full"]
+  targets = ["image"]
 }

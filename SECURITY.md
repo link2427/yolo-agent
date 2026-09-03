@@ -51,10 +51,10 @@ These cannot be baked into the image; they are the actual security boundary.
   `PI_TELEMETRY`); umask 077; per-agent config dirs `chmod 700`.
 - Agent versions + skill repos pinned with sha256 verification; builds fail
   on mismatch ([PINS.md](PINS.md)). prime-agent's kernel runtime is
-  bootstrapped during the build and verified (uv + Python 3.11 + ipykernel +
+  bootstrapped during the build and verified (uv + Python 3.11 +
   `prime-agent-runtime`) — no first-run downloads.
 - prime-agent telemetry disabled (`telemetry.enabled: false` baked + env).
-- **prime-agent kernel caveat:** its persistent IPython kernel executes
+- **prime-agent kernel caveat:** its persistent Python kernel executes
   model-generated Python with the agent's user permissions. It lives in
   `~/.prime/agent/kernel-venv` (inside the volume-populated home) — it is
   user-space process isolation for lifecycle/recovery, **not** a security
@@ -85,7 +85,7 @@ These cannot be baked into the image; they are the actual security boundary.
 ## Verification after `docker load`
 
 ```bash
-docker run --rm --read-only --tmpfs /tmp --user 10001:10001 --entrypoint sh yolo-agent:1.1.0 -c \
+docker run --rm --read-only --tmpfs /tmp --user 10001:10001 --entrypoint sh yolo-agent:1.2.0 -c \
   'id; command -v sudo || echo "no sudo"; find / -xdev -perm /6000 2>/dev/null | wc -l; \
    ls ~/.agents/skills | wc -l; jq -r .permission ~/.config/opencode/opencode.json'
 # expect: uid=10001(agent) ... / no sudo / 0 / >400 / allow
@@ -95,28 +95,26 @@ The image's `--target test` stage already runs these checks at build time.
 
 ## Browser access (server mode) — deliberate exposure tradeoff
 
-`bin/run-server.sh` exposes **code-server (:8080)** and **ttyd (:7681)**
-**with no application-level authentication**. Host publishing defaults to
-`127.0.0.1`; setting `YOLO_BIND_ADDRESS=0.0.0.0` is a deliberate exception to the
-egress-only posture: a web server is inbound surface, and anyone who can reach
-those ports gets a full VS Code instance that can execute commands **as the
-agent user** — the same trust level as the agents themselves.
-
-LAN-only posture. On any shared or internet-reachable network, keep the
-localhost binding and use an authenticated reverse proxy or SSH tunnel. The
-container lockdown (non-root, cap-drop, seccomp, read-only rootfs) still
-applies to everything the web UI can do.
+`bin/run-server.sh` (or `docker compose up -d`) exposes **code-server
+(:8080)**, **ttyd (:7681)**, and **OpenHands (:3000)** with no
+application-level authentication. This is deliberate: the build targets an
+air-gapped internal network, so host publishing defaults to `0.0.0.0`. A
+web UI that can execute commands **as the agent user** is a
+remote-code-execution surface, so keep these ports off any internet-facing
+host. The container lockdown (non-root, cap-drop, seccomp, read-only
+rootfs) still applies to everything the web UI can do.
 
 Everything the browser needs is **baked at build time** — extensions are
 pre-installed from Open VSX (the locked runtime has no open-vsx.org egress),
 and code-server's update check is disabled, so the server never phones home.
 Installed extension versions: `/opt/yolo/EXTENSIONS-MANIFEST.txt`.
 
-The opt-in DeepSeek Harness UI (:3080) is equally sensitive because it can run
-agent tools against the mounted workspace. It defaults to host loopback. The
-container-side relay exists only to bridge upstream Harness's loopback socket
-to Docker publishing; it is not authentication. Never expose it directly to
-an untrusted network.
+The DeepSeek Harness UI (:3080) and the OpenHands UI (:3000) are equally
+sensitive because they can run agent tools against the mounted workspace.
+They default to the internal network bind, like the other browsers. The
+container-side DeepSeek relay exists only to bridge upstream Harness's
+loopback socket to Docker publishing; it is not authentication. Never
+expose any of these to an untrusted network.
 
 ## Git credentials
 

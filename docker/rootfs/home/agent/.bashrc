@@ -21,9 +21,9 @@ fi
 
 if [[ -t 0 ]]; then
   echo
-  echo "yolo-agent — opencode | pi | goose | aider | prime-agent | dsh"
+  echo "yolo-agent — opencode | pi | goose | aider | prime-agent | dsh | OpenHands"
   echo "  docs:   /opt/yolo/README.md   security: /opt/yolo/SECURITY.md"
   echo "  config: VLLM_BASE_URL/VLLM_MODEL in yolo.env -> auto-configured on launch"
-  echo "  web:    code-server :8080 | terminal :7681 | DeepSeek Harness :3080"
+  echo "  web:    code-server :8080 | terminal :7681 | OpenHands :3000 | DeepSeek Harness :3080"
   echo
 fi

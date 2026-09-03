@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Install the browser IDE stack:
-#   * code-server 4.117.0  (VS Code in the browser)   — standalone tarball,
+#   * code-server 4.135.0  (VS Code in the browser)   — standalone tarball,
 #                                                       pinned and hash-checked
 #   * ttyd 1.7.7            (browser terminal)        — pinned, verified vs the
 #     official SHA256SUMS published in the release
@@ -14,14 +14,14 @@
 #
 set -euo pipefail
 : "${HOME:=/home/agent}"
-CODE_SERVER_VERSION="${CODE_SERVER_VERSION:-4.117.0}"
+CODE_SERVER_VERSION="${CODE_SERVER_VERSION:-4.135.0}"
 TTYD_VERSION="${TTYD_VERSION:-1.7.7}"
 
 echo ">> installing code-server ${CODE_SERVER_VERSION}"
 # Prebuilt standalone tarball (avoids the npm postinstall native-module build,
 # which fails in the builder). TOFU-pinned sha256 — code-server publishes no
 # official checksums for its release tarballs.
-CODE_SERVER_SHA256="${CODE_SERVER_SHA256:-5616650cc65a82046eb7ab24b794da6632a3292d07df06908800d75544962391}"
+CODE_SERVER_SHA256="${CODE_SERVER_SHA256:-300ef4e37e469e6368a4673c6a623e1c9ba8a34f42b394fb49c431a8900bc7d1}"
 curl -fsSL -o /tmp/code-server.tar.gz \
   "https://github.com/coder/code-server/releases/download/v${CODE_SERVER_VERSION}/code-server-${CODE_SERVER_VERSION}-linux-amd64.tar.gz"
 echo "$CODE_SERVER_SHA256  /tmp/code-server.tar.gz" | sha256sum -c - >/dev/null

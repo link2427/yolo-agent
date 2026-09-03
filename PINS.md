@@ -6,16 +6,17 @@ Everything is pinned; builds fail on hash mismatch.
 
 | Tool | Version | Source | Integrity |
 |------|---------|--------|-----------|
-| opencode | 1.18.13 | `github.com/anomalyco/opencode` release tarball | sha256 TOFU¹ `8d500b20fed2d26e537e221895b1a575476571b4f0089bb29fb13eeb8eb9e937` |
-| goose | 1.45.0 | `github.com/aaif-goose/goose` release tarball | sha256 TOFU¹ `e0db638ac437ca0a60b0c1622f45322608d228d1a285214c3bf48fd9763346a5` |
-| pi | 0.83.0 | `github.com/earendil-works/pi` release tarball | sha256 **vs official release SHA256SUMS** `b0625eb623197b0afe20c870d21ef2f34481f1504e5777df3f698a66c7636f5f` |
-| prime-agent | 0.7.2 | `github.com/PrimeIntellect-ai/prime-agent` release tarball `prime-agent-0.7.2.tgz` | sha256 **vs official release SHA256SUMS** `bc5471f2a626d727b88a45eb745fff93b10c554a3c4fc5912f25d8c64b987f5e`; install patched with npm overrides for the Aug-2026 AWS SDK registry breakage (`@aws-sdk/eventstream-handler-node`→3.972.9, `@aws-sdk/types`→3.974.2 — referenced patch versions 3.972.32/3.974.3 were never published); kernel runtime verified at build |
+| opencode | 1.18.27 | `github.com/anomalyco/opencode` release tarball | sha256 TOFU¹ `4af5494f…bd702` |
+| goose | 1.48.0 | `github.com/aaif-goose/goose` release tarball | sha256 TOFU¹ `3c38c790…98152` |
+| pi | 0.84.4 | `github.com/earendil-works/pi` release tarball | sha256 **vs official release SHA256SUMS** `c2f3c3e6…23972` |
+| prime-agent | 0.9.1 | `github.com/PrimeIntellect-ai/prime-agent` release tarball `prime-agent-0.9.1.tgz` | sha256 **vs official release SHA256SUMS** `573bce0c…835ba`; kernel runtime verified at build |
 | DeepSeek Harness (`dsh`) | 0.1.1-rc.2 | npm `@deepseek-ai/dsh` | exact top-level version plus complete transitive integrity lock in `docker/install/deepseek-harness/pnpm-lock.yaml`; pnpm 11.7.0; CLI/config boot verified at build; wrapper passes upstream's required `node --expose-internals` workaround for the rc.2 HMR loader bug; upstream marks this a developer preview |
-| code-server | 4.117.0 | `github.com/coder/code-server` standalone release tarball | sha256 TOFU¹ `5616650cc65a82046eb7ab24b794da6632a3292d07df06908800d75544962391` |
+| OpenHands | 1.16.0 | pip `openhands` (uv-managed Python 3.12 venv) | exact version pin; runs `openhands web` (browser UI, no Docker socket); uv 0.12.9 (sha256 `ec7a99cd…a1460`) |
+| code-server | 4.135.0 | `github.com/coder/code-server` standalone release tarball | sha256 TOFU¹ `300ef4e3…bc7d1` |
 | ttyd | 1.7.7 | `github.com/tsl0922/ttyd` release binary `ttyd.x86_64` | sha256 **vs official release SHA256SUMS** (verified at build) |
 | VS Code extension pack | 15 extensions | Open VSX, installed at build time | versions recorded in `/opt/yolo/EXTENSIONS-MANIFEST.txt` in the image (audit before shipping) |
 | aider-chat | 0.86.2 | PyPI (isolated venv) | pinned exact version over TLS |
-| node | 22 (bookworm-slim) | Docker Hub `node:22-bookworm-slim` | Linux/amd64 manifest pinned: `sha256:4d676821dff059fd00d277ee4261ef34ea712317fed0737c03941481b5760c96` |
+| node | 22 (bookworm-slim) | Docker Hub `node:22-bookworm-slim` | Linux/amd64 manifest pinned: `sha256:4d676821…0c96` |
 | python / git / build-essential / … | Debian bookworm (12) | apt | distro-managed |
 
 ## Skills library (10 repos, 920 deduped skills after v6 name normalization, ~147 MB on disk)

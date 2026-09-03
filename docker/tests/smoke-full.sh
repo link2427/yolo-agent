@@ -8,7 +8,7 @@ test "$(find "$HOME/.agents/skills" -maxdepth 1 -mindepth 1 | wc -l)" -eq 30
 /opt/yolo/skill-use.sh tdd >/dev/null
 test "$(find "$HOME/.agents/skills" -maxdepth 1 -mindepth 1 | wc -l)" -eq 31
 
-code-server --version | grep -q 4.117.0
+code-server --version | grep -q 4.135.0
 ttyd --version | grep -q 1.7.7
 test "$(find "$HOME/.local/share/code-server/extensions" -maxdepth 1 -mindepth 1 | wc -l)" -ge 10
 
@@ -40,4 +40,18 @@ kill "$ttyd_pid" 2>/dev/null || true
 wait "$ttyd_pid" 2>/dev/null || true
 test "$ok" -eq 1
 
-echo "full-profile smoke tests passed"
+/opt/yolo/openhands-web-start.sh >/tmp/openhands.log 2>&1 &
+openhands_pid=$!
+ok=0
+for _ in $(seq 1 40); do
+  if curl -sS -o /dev/null http://127.0.0.1:3000/ 2>/dev/null; then
+    ok=1
+    break
+  fi
+  sleep 2
+done
+kill "$openhands_pid" 2>/dev/null || true
+wait "$openhands_pid" 2>/dev/null || true
+test "$ok" -eq 1
+
+echo "smoke tests passed"
