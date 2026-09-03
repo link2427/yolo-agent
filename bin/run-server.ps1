@@ -1,6 +1,6 @@
 [CmdletBinding(PositionalBinding = $false)]
 param(
-    [string]$Image = $(if ($env:YOLO_IMAGE) { $env:YOLO_IMAGE } else { "yolo-agent:1.1.0" })
+    [string]$Image = $(if ($env:YOLO_IMAGE) { $env:YOLO_IMAGE } else { "yolo-agent:1.2.0" })
 )
 
 $ErrorActionPreference = "Stop"
@@ -10,9 +10,10 @@ $seccomp = Join-Path $repoRoot "config\seccomp-yolo.json"
 $homeVolume = if ($env:YOLO_HOME_VOLUME) { $env:YOLO_HOME_VOLUME } else { "yolo-agent-home-v1" }
 $memory = if ($env:YOLO_MEM) { $env:YOLO_MEM } else { "8g" }
 $cpus = if ($env:YOLO_CPUS) { $env:YOLO_CPUS } else { "4" }
-$bindAddress = if ($env:YOLO_BIND_ADDRESS) { $env:YOLO_BIND_ADDRESS } else { "127.0.0.1" }
+$bindAddress = if ($env:YOLO_BIND_ADDRESS) { $env:YOLO_BIND_ADDRESS } else { "0.0.0.0" }
 $codePort = if ($env:YOLO_CODE_PORT) { $env:YOLO_CODE_PORT } else { "8080" }
 $terminalPort = if ($env:YOLO_TERMINAL_PORT) { $env:YOLO_TERMINAL_PORT } else { "7681" }
+$openhandsPort = if ($env:YOLO_OPENHANDS_PORT) { $env:YOLO_OPENHANDS_PORT } else { "3000" }
 $workspace = (Get-Location).Path
 
 if (-not (Test-Path -LiteralPath $envFile -PathType Leaf)) {
@@ -38,6 +39,7 @@ $dockerArgs = @(
     "--stop-timeout", "30",
     "-p", "${bindAddress}:${codePort}:8080",
     "-p", "${bindAddress}:${terminalPort}:7681",
+    "-p", "${bindAddress}:${openhandsPort}:3000",
     "--env-file", $envFile,
     "--workdir", "/workspace",
     $Image, "/opt/yolo/server-start.sh"
@@ -48,4 +50,5 @@ if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 Write-Host "yolo-agent server running:"
 Write-Host "  VS Code: http://${bindAddress}:${codePort}"
 Write-Host "  Terminal: http://${bindAddress}:${terminalPort}"
+Write-Host "  OpenHands: http://${bindAddress}:${openhandsPort}"
 Write-Host "  Logs: docker logs -f yolo-agent-server"

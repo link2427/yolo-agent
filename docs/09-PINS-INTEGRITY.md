@@ -6,15 +6,17 @@ Everything is pinned; builds fail on hash mismatch.
 
 | Tool | Version | Source | Integrity |
 |------|---------|--------|-----------|
-| opencode | 1.18.13 | `github.com/anomalyco/opencode` release tarball | sha256 TOFU¹ `8d500b20fed2d26e537e221895b1a575476571b4f0089bb29fb13eeb8eb9e937` |
-| goose | 1.45.0 | `github.com/aaif-goose/goose` release tarball | sha256 TOFU¹ `e0db638ac437ca0a60b0c1622f45322608d228d1a285214c3bf48fd9763346a5` |
-| pi | 0.83.0 | `github.com/earendil-works/pi` release tarball | sha256 **vs official release SHA256SUMS** `b0625eb623197b0afe20c870d21ef2f34481f1504e5777df3f698a66c7636f5f` |
-| prime-agent | 0.7.2 | `github.com/PrimeIntellect-ai/prime-agent` release tarball | sha256 **vs official release SHA256SUMS** `bc5471f2a626d727b88a45eb745fff93b10c554a3c4fc5912f25d8c64b987f5e` (install patched via npm overrides for the Aug-2026 AWS SDK registry breakage) |
+| opencode | 1.18.27 | `github.com/anomalyco/opencode` release tarball | sha256 TOFU¹ `4af5494f9433f59db8c1e344198f0ee72a50c06ec009fb4a8aeab4c2d4abd702` |
+| goose | 1.48.0 | `github.com/aaif-goose/goose` release tarball | sha256 TOFU¹ `3c38c790723fde4532357f35346b7190bd70d198e6be559f9ffeac4cf7c98152` |
+| pi | 0.84.4 | `github.com/earendil-works/pi` release tarball | sha256 **vs official release SHA256SUMS** `c2f3c3e6a1850bd87654cc3ca8811013272397c3d042a4e2a64c43ee1b423972` |
+| prime-agent | 0.9.1 | `github.com/PrimeIntellect-ai/prime-agent` release tarball | sha256 **vs official release SHA256SUMS** `573bce0cd004fc62052e9a924089941b7f39266ab71e66a94c85a1f9d35835ba` |
 | aider-chat | 0.86.2 | PyPI (isolated venv `/opt/aider-venv`) | pinned exact version over TLS |
-| code-server | 4.117.0 | `github.com/coder/code-server` release tarball (standalone) | sha256 TOFU¹ `5616650cc65a82046eb7ab24b794da6632a3292d07df06908800d75544962391` |
+| OpenHands | 0.62.0 | pip `openhands-ai` (uv-managed Python 3.13 venv) | exact version pin; compiled web frontend built from pinned source (`All-Hands-AI/OpenHands` @ `0.62.0`); uv 0.12.9; `RUNTIME=local` (no Docker socket) |
+| code-server | 4.135.0 | `github.com/coder/code-server` release tarball (standalone) | sha256 TOFU¹ `300ef4e37e469e6368a4673c6a623e1c9ba8a34f42b394fb49c431a8900bc7d1` |
 | ttyd | 1.7.7 | `github.com/tsl0922/ttyd` release binary `ttyd.x86_64` | sha256 **vs official release SHA256SUMS** |
 | node / npm | 22 | Docker Hub `node:22-bookworm-slim` | Linux/amd64 manifest pinned: `sha256:4d676821dff059fd00d277ee4261ef34ea712317fed0737c03941481b5760c96` |
-| python / git / build-essential / … | Debian bookworm (12) | apt | distro-managed |
+| python | 3.11 (system) + 3.13 (OpenHands venv, uv-managed) | apt + python-build-standalone via uv | distro-managed + uv-managed |
+| git / build-essential / … | Debian bookworm (12) | apt | distro-managed |
 
 ## Skills library (10 repos, 924 deduped skills, ~147 MB)
 

@@ -13,7 +13,7 @@
 | Start aider (in a git repo) | `aider` |
 | Start prime-agent | `prime-agent` |
 | prime-agent headless YOLO | `prime-agent --autonomous --offline "task"` |
-| Start DeepSeek Harness UI | `docker compose --profile deepseek up -d deepseek` |
+| Start DeepSeek Harness UI | `docker compose up -d deepseek` |
 | Run a DeepSeek Harness task | `dsh --profile headless "task"` |
 | Inspect DeepSeek Harness config | `dsh --profile headless --dump-config` |
 | prime-agent sessions | `prime-agent agents` · `prime-agent attach <id>` · `prime-agent --resume <id>` · `prime-agent status` |

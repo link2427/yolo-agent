@@ -7,6 +7,7 @@ set -euxo pipefail
 : "${AIDER_VERSION:?}"
 : "${PRIME_AGENT_VERSION:?}"
 : "${DSH_VERSION:?}"
+: "${OPENHANDS_VERSION:?}"
 
 test "$(id -un)" = agent
 test "$(id -u)" = 10001
@@ -17,6 +18,12 @@ aider --version 2>&1 | grep -Fq "$AIDER_VERSION"
 prime-agent --version 2>&1 | grep -Fq "$PRIME_AGENT_VERSION"
 dsh --version 2>&1 | grep -Fxq "$DSH_VERSION"
 dsh --profile headless --dump-default-config >/dev/null
+
+# OpenHands (full web UI, uv-managed Python 3.13 venv)
+/opt/openhands/bin/python -c 'import openhands, openhands.server.listen'
+/opt/openhands/bin/python -c 'import importlib.metadata as m; print(m.version("openhands-ai"))' | grep -Fq "$OPENHANDS_VERSION"
+test -d /opt/openhands/frontend/build
+test "$(find /opt/openhands/frontend/build -type f | wc -l)" -gt 10
 node --version 2>&1 | grep -q '^v22'
 python3 --version 2>&1 | grep -q '3\.11'
 

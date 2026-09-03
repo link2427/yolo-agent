@@ -2,32 +2,22 @@
 set -euo pipefail
 
 usage() {
-  echo "usage: $0 <version> <full|headless> <image-ref> [output-dir]" >&2
+  echo "usage: $0 <version> <image-ref> [output-dir]" >&2
   exit 2
 }
 
-[[ $# -ge 3 && $# -le 4 ]] || usage
+[[ $# -ge 2 && $# -le 3 ]] || usage
 
 version="$1"
-profile="$2"
-image_ref="$3"
-output_dir="${4:-dist}"
+image_ref="$2"
+output_dir="${3:-dist}"
 
 case "$version" in
   ''|*[!0-9A-Za-z._-]*) echo "invalid version: $version" >&2; exit 2 ;;
 esac
 
-case "$profile" in
-  full)
-    local_image="yolo-agent:$version"
-    archive="yolo-agent_${version}_full.docker.tar"
-    ;;
-  headless)
-    local_image="yolo-agent:${version}-headless"
-    archive="yolo-agent_${version}_headless.docker.tar"
-    ;;
-  *) usage ;;
-esac
+local_image="yolo-agent:$version"
+archive="yolo-agent_${version}.docker.tar"
 
 for tool in docker zip sha256sum git stat split; do
   command -v "$tool" >/dev/null || {
@@ -39,7 +29,7 @@ done
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 mkdir -p "$output_dir"
 output_dir="$(cd "$output_dir" && pwd)"
-bundle_name="yolo-agent-${version}-${profile}-offline"
+bundle_name="yolo-agent-${version}-offline"
 staging="$output_dir/$bundle_name"
 zip_path="$output_dir/${bundle_name}.zip"
 zip_checksum="${zip_path}.sha256"
@@ -76,7 +66,7 @@ docker image inspect "$local_image" > "$staging/IMAGE-INSPECT.json"
 )
 
 cat > "$staging/LOAD-OFFLINE.txt" <<EOF
-yolo-agent $version ($profile) offline bundle
+yolo-agent $version offline bundle
 
 1. Verify the Docker archive:
    Linux/macOS/WSL:
@@ -96,11 +86,8 @@ yolo-agent $version ($profile) offline bundle
 
 4. Run it:
    Local image tag: $local_image
-   Full profile:
-     docker compose run --rm agent
-     docker compose --profile server up -d server
-   Headless profile:
-     YOLO_IMAGE=$local_image docker compose run --rm agent
+     docker compose run --rm agent     # interactive shell
+     docker compose up -d              # code-server, ttyd, OpenHands, DeepSeek Harness
 
 No registry or internet connection is required after docker load completes.
 EOF

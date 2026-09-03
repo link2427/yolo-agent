@@ -6,35 +6,35 @@ anything permitted inside /workspace and /home/agent, while the host-facing
 runtime drops capabilities, blocks privilege escalation, uses a read-only root
 filesystem, and never mounts the Docker socket.
 
-## Profiles
+## The runtime
 
-| Profile | Includes | Intended use |
-| --- | --- | --- |
-| Full | Six agents, code-server, ttyd/tmux, complete skills library | Persistent browser development box |
-| Headless | Six agents and core developer tools | CI, terminals, and smaller transfers |
-
-Both profiles use uid 10001 and the same persistent home-volume layout.
+The image is a single always-on browser runtime: every agent harness plus
+code-server, ttyd/tmux, OpenHands, DeepSeek Harness, and the complete skills
+library. There is no separate headless variant — this build targets an
+air-gapped internal network, so every web surface is exposed by default.
 
 ## Pinned components
 
 | Component | Version |
 | --- | --- |
-| opencode | 1.18.13 |
-| goose | 1.45.0 |
-| pi | 0.83.0 |
+| opencode | 1.18.27 |
+| goose | 1.48.0 |
+| pi | 0.84.4 |
 | aider | 0.86.2 |
-| Prime Agent | 0.7.2 |
+| Prime Agent | 0.9.1 |
 | DeepSeek Harness | 0.1.1-rc.2 (developer preview) |
-| code-server (full) | 4.117.0 |
-| ttyd (full) | 1.7.7 |
+| OpenHands | 0.62.0 (full web UI, `RUNTIME=local`) |
+| code-server | 4.135.0 |
+| ttyd | 1.7.7 |
 | Node | 22, Debian Bookworm slim, image digest pinned |
-| Python | 3.11 |
+| Python | 3.11 (system) + 3.13 (OpenHands venv, uv-managed) |
 
 ## Version lineage
 
 - 5.0 survives only as documents and export metadata in history/v5.0.
 - 6.0 is the exact recovered source at tag archive-yolo-dev-6.0-recovered.
-- 1.0 begins the reorganized source-first build with full/headless profiles,
-  Docker Bake, Compose, CI, and tagged GHCR releases.
+- 1.0 begins the reorganized source-first build with Docker Bake, Compose,
+  CI, and tagged GHCR releases.
+- 1.2 drops the headless profile and adds OpenHands.
 
 See CHANGELOG.md and history/README.md for the recovery boundary.

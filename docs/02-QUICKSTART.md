@@ -2,8 +2,8 @@
 
 ## Offline/disc installation
 
-Download the `full-offline.zip` or `headless-offline.zip` asset from the
-GitHub release, copy it to the disc, unzip it on the destination, and follow
+Download the `yolo-agent-<version>-offline.zip` asset from the GitHub release,
+copy it to the disc, unzip it on the destination, and follow
 `LOAD-OFFLINE.txt`. The bundle includes the Docker image, its checksum,
 launchers, runtime configuration, and these docs. No registry connection is
 needed after the image is loaded.
@@ -21,12 +21,11 @@ Real keys belong only in config/yolo.env; Git ignores that file.
 ## 2. Build and validate
 
 ```bash
-docker buildx bake
-docker buildx bake images
+docker buildx bake          # build + smoke test
+docker buildx bake images   # build only
 ```
 
-The first command runs both image smoke suites. The second produces the full
-and headless images. To use a published image, set YOLO_IMAGE to a GHCR tag.
+To use a published image, set YOLO_IMAGE to a GHCR tag.
 
 ## 3. Start a shell
 
@@ -41,22 +40,21 @@ volume even though the interactive container is removed at exit.
 ## 4. Start the browser services
 
 ```bash
-docker compose --profile server up -d server
+docker compose up -d
 docker compose logs -f server
 ```
 
-Defaults:
+Defaults (bound to the internal network, i.e. 0.0.0.0):
 
-- code-server: http://127.0.0.1:8080
-- ttyd/tmux: http://127.0.0.1:7681
-
-Use YOLO_BIND_ADDRESS=0.0.0.0 only on a trusted network or behind an
-authenticated proxy.
+- code-server: http://<host>:8080
+- ttyd/tmux: http://<host>:7681
+- OpenHands: http://<host>:3000
+- DeepSeek Harness: http://<host>:3080
 
 ## 5. Stop without deleting state
 
 ```bash
-docker compose --profile server down
+docker compose down
 ```
 
 Do not add --volumes unless you intentionally want to delete the persisted

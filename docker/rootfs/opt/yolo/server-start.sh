@@ -7,9 +7,10 @@
 #   ttyd         -> browser terminal              http://<host>:7681
 #                   (wraps tmux: sessions survive tab closes; reattach with
 #                    tmux attach -t yolo, or just reopen the page)
+#   OpenHands    -> agent IDE with a browser UI   http://<host>:3000
 #
-# Both processes are restarted if they crash. Logs: /tmp/code-server.log,
-# /tmp/ttyd.log.
+# Each process is restarted if it crashes. Logs: /tmp/code-server.log,
+# /tmp/ttyd.log, /tmp/openhands.log.
 set -euo pipefail
 
 start_code_server() {
@@ -22,10 +23,15 @@ start_ttyd() {
     >>/tmp/ttyd.log 2>&1 &
   echo $!
 }
+start_openhands() {
+  /opt/yolo/openhands-web-start.sh >>/tmp/openhands.log 2>&1 &
+  echo $!
+}
 
-echo "yolo-agent web: code-server on :8080, ttyd+tmux on :7681"
+echo "yolo-agent web: code-server :8080, ttyd+tmux :7681, OpenHands :3000"
 CS_PID=$(start_code_server)
 TTYD_PID=$(start_ttyd)
+OH_PID=$(start_openhands)
 
 while true; do
   if ! kill -0 "$CS_PID" 2>/dev/null; then
@@ -35,6 +41,10 @@ while true; do
   if ! kill -0 "$TTYD_PID" 2>/dev/null; then
     echo "$(date -u +%FT%TZ) ttyd exited; restarting" >>/tmp/ttyd.log
     TTYD_PID=$(start_ttyd)
+  fi
+  if ! kill -0 "$OH_PID" 2>/dev/null; then
+    echo "$(date -u +%FT%TZ) OpenHands exited; restarting" >>/tmp/openhands.log
+    OH_PID=$(start_openhands)
   fi
   sleep 5
 done

@@ -1,5 +1,5 @@
 x-yolo-agent: &yolo-agent
-  image: ${YOLO_IMAGE:-yolo-agent:1.1.0}
+  image: ${YOLO_IMAGE:-yolo-agent:1.2.0}
   user: "10001:10001"
   read_only: true
   cap_drop:
@@ -23,6 +23,9 @@ x-yolo-agent: &yolo-agent
   pids_limit: 2048
   stop_grace_period: 30s
 
+# The image is a single always-on browser runtime. Every web surface is
+# exposed on the internal network by default (this build is meant for an
+# air-gapped LAN with no external reach).
 services:
   agent:
     <<: *yolo-agent
@@ -32,20 +35,19 @@ services:
 
   server:
     <<: *yolo-agent
-    profiles: [server]
     restart: unless-stopped
     command: /opt/yolo/server-start.sh
     ports:
-      - ${YOLO_BIND_ADDRESS:-127.0.0.1}:${YOLO_CODE_PORT:-8080}:8080
-      - ${YOLO_BIND_ADDRESS:-127.0.0.1}:${YOLO_TERMINAL_PORT:-7681}:7681
+      - ${YOLO_BIND_ADDRESS:-0.0.0.0}:${YOLO_CODE_PORT:-8080}:8080
+      - ${YOLO_BIND_ADDRESS:-0.0.0.0}:${YOLO_TERMINAL_PORT:-7681}:7681
+      - ${YOLO_BIND_ADDRESS:-0.0.0.0}:${YOLO_OPENHANDS_PORT:-3000}:3000
 
   deepseek:
     <<: *yolo-agent
-    profiles: [deepseek]
     restart: unless-stopped
     command: /opt/yolo/deepseek-web-start.sh
     ports:
-      - ${YOLO_BIND_ADDRESS:-127.0.0.1}:${DSH_WEB_PORT:-3080}:3081
+      - ${YOLO_BIND_ADDRESS:-0.0.0.0}:${DSH_WEB_PORT:-3080}:3081
 
 volumes:
   yolo-agent-home:
