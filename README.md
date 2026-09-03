@@ -13,7 +13,7 @@ file.
 
 `yolo-agent` is a single always-on browser runtime. It ships every agent
 harness, the browser IDE (code-server), the terminal (ttyd/tmux), OpenHands
-(a full agent web UI), and DeepSeek Harness. There is no separate headless
+(`openhands web` on port 3000), and DeepSeek Harness. There is no separate headless
 variant: every web surface is exposed by default, because this build targets
 an air-gapped internal network.
 

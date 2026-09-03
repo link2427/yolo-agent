@@ -10,7 +10,7 @@ host-loopback instead.
 |---------|-----|------------|
 | code-server | `http://<host>:8080` | Full VS Code in the browser |
 | ttyd | `http://<host>:7681` | Browser terminal (wraps tmux) |
-| OpenHands | `http://<host>:3000` | Autonomous agent with a full web UI |
+| OpenHands | `http://<host>:3000` | OpenHands CLI browser UI (`openhands web`) |
 
 ## code-server
 
@@ -45,11 +45,12 @@ ttyd serves a terminal that wraps **tmux** (`tmux new -A -s yolo-agent`), so:
 
 ## OpenHands
 
-OpenHands is a full agent web UI. It runs with `RUNTIME=local` (no Docker
-socket, no sandbox subprocess) inside the locked container, and is pointed at
-the same local vLLM endpoint as the other agents (see
-`configure-openhands.sh`; driven by VLLM_* in yolo.env). Conversations and
-settings persist under `~/.openhands`.
+OpenHands 1.16.0 is the current CLI, installed via pip into a uv-managed
+Python 3.12 venv. `openhands web` serves the browser UI on port 3000 with no
+Docker socket. `openhands serve` (the full GUI) is not used here because it
+needs Docker. The UI is pointed at the same local vLLM endpoint as the other
+agents (see `configure-openhands.sh`; driven by VLLM_* in yolo.env).
+Conversations and settings persist under `~/.openhands`.
 
 ## Ops
 

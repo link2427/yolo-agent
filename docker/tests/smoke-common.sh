@@ -19,11 +19,8 @@ prime-agent --version 2>&1 | grep -Fq "$PRIME_AGENT_VERSION"
 dsh --version 2>&1 | grep -Fxq "$DSH_VERSION"
 dsh --profile headless --dump-default-config >/dev/null
 
-# OpenHands (full web UI, uv-managed Python 3.13 venv)
-/opt/openhands/bin/python -c 'import openhands, openhands.server.listen'
-/opt/openhands/bin/python -c 'import importlib.metadata as m; print(m.version("openhands-ai"))' | grep -Fq "$OPENHANDS_VERSION"
-test -d /opt/openhands/frontend/build
-test "$(find /opt/openhands/frontend/build -type f | wc -l)" -gt 10
+# OpenHands (current CLI, uv-managed Python 3.12 venv)
+/opt/openhands/bin/openhands --version | grep -Fq "$OPENHANDS_VERSION"
 node --version 2>&1 | grep -q '^v22'
 python3 --version 2>&1 | grep -q '3\.11'
 

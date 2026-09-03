@@ -14,7 +14,7 @@ ARG PI_VERSION=0.84.4
 ARG AIDER_VERSION=0.86.2
 ARG PRIME_AGENT_VERSION=0.9.1
 ARG DSH_VERSION=0.1.1-rc.2
-ARG OPENHANDS_VERSION=0.62.0
+ARG OPENHANDS_VERSION=1.16.0
 
 LABEL org.opencontainers.image.title="yolo-agent" \
       org.opencontainers.image.description="Persistent, locked-down autonomous coding-agent environment" \
@@ -73,23 +73,8 @@ FROM toolchain AS web-ide
 COPY docker/install/install-web-ide.sh /tmp/install-web-ide.sh
 RUN HOME=/home/agent bash /tmp/install-web-ide.sh && rm -f /tmp/install-web-ide.sh
 
-# OpenHands web frontend (needs Node 24; built from the pinned source tarball).
-FROM node:24-bookworm-slim AS openhands-frontend
-ARG OPENHANDS_VERSION
-ARG OPENHANDS_TARBALL_SHA256=88df49127eea13caa4970d20d562d65325a0d1937c679dafff3866ebd09d015c
-WORKDIR /build
-RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
- && curl -fsSL -o /tmp/openhands.tgz \
-      "https://codeload.github.com/All-Hands-AI/OpenHands/tar.gz/${OPENHANDS_VERSION}" \
- && echo "${OPENHANDS_TARBALL_SHA256}  /tmp/openhands.tgz" | sha256sum -c - \
- && tar -xzf /tmp/openhands.tgz -C /build --strip-components=1 \
- && rm -f /tmp/openhands.tgz
-WORKDIR /build/frontend
-RUN npm ci && npm run build
-
-# OpenHands backend: uv-managed Python 3.13 (relocatable) + openhands-ai venv.
-# Built on `base` so the final venv copies cleanly into the runtime image at
-# /opt/openhands (with its interpreter under /opt/uv-python).
+# OpenHands: the current CLI (its `openhands web` browser UI), installed into a
+# uv-managed Python 3.12 venv. No Docker socket and no separate frontend build.
 FROM base AS openhands
 ARG OPENHANDS_VERSION
 ARG UV_VERSION=0.12.9
@@ -101,10 +86,9 @@ RUN curl -fsSL -o /tmp/uv.tgz \
  && mv /tmp/uv-x86_64-unknown-linux-gnu/uv /usr/local/bin/uv \
  && rm -rf /tmp/uv.tgz /tmp/uv-x86_64-unknown-linux-gnu
 ENV UV_PYTHON_INSTALL_DIR=/opt/uv-python
-RUN uv python install 3.13 \
- && uv venv /opt/openhands --python 3.13 \
- && uv pip install --python /opt/openhands/bin/python --no-cache "openhands-ai==${OPENHANDS_VERSION}"
-COPY --from=openhands-frontend /build/frontend/build /opt/openhands/frontend/build
+RUN uv python install 3.12 \
+ && uv venv /opt/openhands --python 3.12 \
+ && uv pip install --python /opt/openhands/bin/python --no-cache "openhands==${OPENHANDS_VERSION}"
 
 # Single always-on runtime: every agent plus the browser IDE, terminal,
 # OpenHands, DeepSeek Harness, and the pinned skills library. There is no
@@ -119,7 +103,7 @@ COPY docker/rootfs/opt/yolo/ /opt/yolo/
 COPY config/seccomp-yolo.json /opt/yolo/seccomp-yolo.json
 COPY docs/ /opt/yolo/docs/
 
-# OpenHands (uv-managed Python 3.13 venv + compiled frontend).
+# OpenHands (uv-managed Python 3.12 venv).
 COPY --from=openhands /opt/uv-python /opt/uv-python
 COPY --from=openhands /opt/openhands /opt/openhands
 

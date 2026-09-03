@@ -23,11 +23,11 @@ air-gapped internal network, so every web surface is exposed by default.
 | aider | 0.86.2 |
 | Prime Agent | 0.9.1 |
 | DeepSeek Harness | 0.1.1-rc.2 (developer preview) |
-| OpenHands | 0.62.0 (full web UI, `RUNTIME=local`) |
+| OpenHands | 1.16.0 (`openhands web`, no Docker socket) |
 | code-server | 4.135.0 |
 | ttyd | 1.7.7 |
 | Node | 22, Debian Bookworm slim, image digest pinned |
-| Python | 3.11 (system) + 3.13 (OpenHands venv, uv-managed) |
+| Python | 3.11 (system) + 3.12 (OpenHands venv, uv-managed) |
 
 ## Version lineage
 

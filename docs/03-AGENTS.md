@@ -76,12 +76,14 @@ VLLM_BASE_URL=http://<host>:8000/v1 VLLM_MODEL=<model> /opt/yolo/configure-agent
 - The Harness can read/edit/run anything available to uid 10001 inside the
   container, but receives no Docker socket, capabilities, sudo, or host root.
 
-## OpenHands 0.62.0
+## OpenHands 1.16.0
 
-- Full agent web UI at `http://<host>:3000`, running with `RUNTIME=local`
-  (no Docker socket) inside the container.
-- Configured by `configure-openhands.sh` from the same VLLM_* values in
-  yolo.env; conversations and settings persist under `~/.openhands`.
+- Browser UI at `http://<host>:3000` via `openhands web` (no Docker socket)
+  inside the container. Installed as pip `openhands` in a uv-managed Python
+  3.12 venv at `/opt/openhands`.
+- Configured by `configure-openhands.sh` into `~/.openhands/agent_settings.json`
+  from the same VLLM_* values in yolo.env; conversations and settings persist
+  under `~/.openhands`.
 - Started by the server supervisor (`/opt/yolo/server-start.sh`); see 05.
 
 ## Git identity for commits

@@ -11,7 +11,7 @@ Everything is pinned; builds fail on hash mismatch.
 | pi | 0.84.4 | `github.com/earendil-works/pi` release tarball | sha256 **vs official release SHA256SUMS** `c2f3c3e6…23972` |
 | prime-agent | 0.9.1 | `github.com/PrimeIntellect-ai/prime-agent` release tarball `prime-agent-0.9.1.tgz` | sha256 **vs official release SHA256SUMS** `573bce0c…835ba`; kernel runtime verified at build |
 | DeepSeek Harness (`dsh`) | 0.1.1-rc.2 | npm `@deepseek-ai/dsh` | exact top-level version plus complete transitive integrity lock in `docker/install/deepseek-harness/pnpm-lock.yaml`; pnpm 11.7.0; CLI/config boot verified at build; wrapper passes upstream's required `node --expose-internals` workaround for the rc.2 HMR loader bug; upstream marks this a developer preview |
-| OpenHands | 0.62.0 | pip `openhands-ai` (uv-managed Python 3.13 venv) | exact version pin; compiled web frontend built from pinned source (`All-Hands-AI/OpenHands` @ `0.62.0`, sha256 `88df4912…d015c`); uv 0.12.9 (sha256 `ec7a99cd…a1460`); runs with `RUNTIME=local` (no Docker socket) — the last single-container full web UI release |
+| OpenHands | 1.16.0 | pip `openhands` (uv-managed Python 3.12 venv) | exact version pin; runs `openhands web` (browser UI, no Docker socket); uv 0.12.9 (sha256 `ec7a99cd…a1460`) |
 | code-server | 4.135.0 | `github.com/coder/code-server` standalone release tarball | sha256 TOFU¹ `300ef4e3…bc7d1` |
 | ttyd | 1.7.7 | `github.com/tsl0922/ttyd` release binary `ttyd.x86_64` | sha256 **vs official release SHA256SUMS** (verified at build) |
 | VS Code extension pack | 15 extensions | Open VSX, installed at build time | versions recorded in `/opt/yolo/EXTENSIONS-MANIFEST.txt` in the image (audit before shipping) |

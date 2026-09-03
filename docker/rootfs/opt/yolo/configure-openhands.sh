@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
-# Write OpenHands (v0.62) config pointing at the same local vLLM endpoint
-# that configure-agents.sh uses, so one yolo.env configures every harness.
-# Idempotent; secrets stay in the $HOME volume (mode 600), never the image.
+# Write OpenHands (CLI) agent settings pointing at the same local vLLM
+# endpoint that configure-agents.sh uses, so one yolo.env configures every
+# harness. Idempotent; secrets stay in the $HOME volume (mode 600).
 set -euo pipefail
 umask 077
 : "${HOME:=/home/agent}"
@@ -16,19 +16,16 @@ VLLM_API_KEY="${VLLM_API_KEY:-local}"
   exit 1
 }
 
-base="${VLLM_BASE_URL%/}"
-cfg="$HOME/.openhands/config.toml"
 mkdir -p "$HOME/.openhands"
-
-cat > "$cfg" <<CFGEOF
-[llm]
-model = "openai/$VLLM_MODEL"
-base_url = "$base"
-api_key = "$VLLM_API_KEY"
-custom_llm_provider = "openai"
-
-[core]
-workspace_base = "/workspace"
-CFGEOF
+cfg="$HOME/.openhands/agent_settings.json"
+cat > "$cfg" <<JSONEOF
+{
+  "llm": {
+    "model": "openai/$VLLM_MODEL",
+    "base_url": "$VLLM_BASE_URL",
+    "api_key": "$VLLM_API_KEY"
+  }
+}
+JSONEOF
 chmod 600 "$cfg"
-echo "configure-openhands: $cfg -> openai/$VLLM_MODEL @ $base"
+echo "configure-openhands: $cfg -> openai/$VLLM_MODEL @ $VLLM_BASE_URL"

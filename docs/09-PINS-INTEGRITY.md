@@ -11,11 +11,11 @@ Everything is pinned; builds fail on hash mismatch.
 | pi | 0.84.4 | `github.com/earendil-works/pi` release tarball | sha256 **vs official release SHA256SUMS** `c2f3c3e6a1850bd87654cc3ca8811013272397c3d042a4e2a64c43ee1b423972` |
 | prime-agent | 0.9.1 | `github.com/PrimeIntellect-ai/prime-agent` release tarball | sha256 **vs official release SHA256SUMS** `573bce0cd004fc62052e9a924089941b7f39266ab71e66a94c85a1f9d35835ba` |
 | aider-chat | 0.86.2 | PyPI (isolated venv `/opt/aider-venv`) | pinned exact version over TLS |
-| OpenHands | 0.62.0 | pip `openhands-ai` (uv-managed Python 3.13 venv) | exact version pin; compiled web frontend built from pinned source (`All-Hands-AI/OpenHands` @ `0.62.0`); uv 0.12.9; `RUNTIME=local` (no Docker socket) |
+| OpenHands | 1.16.0 | pip `openhands` (uv-managed Python 3.12 venv) | exact version pin; runs `openhands web` (browser UI, no Docker socket); uv 0.12.9 |
 | code-server | 4.135.0 | `github.com/coder/code-server` release tarball (standalone) | sha256 TOFU¹ `300ef4e37e469e6368a4673c6a623e1c9ba8a34f42b394fb49c431a8900bc7d1` |
 | ttyd | 1.7.7 | `github.com/tsl0922/ttyd` release binary `ttyd.x86_64` | sha256 **vs official release SHA256SUMS** |
 | node / npm | 22 | Docker Hub `node:22-bookworm-slim` | Linux/amd64 manifest pinned: `sha256:4d676821dff059fd00d277ee4261ef34ea712317fed0737c03941481b5760c96` |
-| python | 3.11 (system) + 3.13 (OpenHands venv, uv-managed) | apt + python-build-standalone via uv | distro-managed + uv-managed |
+| python | 3.11 (system) + 3.12 (OpenHands venv, uv-managed) | apt + python-build-standalone via uv | distro-managed + uv-managed |
 | git / build-essential / … | Debian bookworm (12) | apt | distro-managed |
 
 ## Skills library (10 repos, 924 deduped skills, ~147 MB)
