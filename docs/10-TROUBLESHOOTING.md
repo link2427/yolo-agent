@@ -30,7 +30,7 @@
 
 | Symptom | Fix |
 |---------|-----|
-| `prime-agent` starts but no kernel | Check `~/.prime/agent/kernel-venv/bin/python -c "import ipykernel, rlm"`; if missing, back up the volume and retry with a fresh `yolo-agent-home-v1` |
+| `prime-agent` starts but no kernel | Check `~/.prime/agent/kernel-venv/bin/python -c "import rlm, dill, numpy"`; if missing, back up the volume and retry with a fresh `yolo-agent-home-v1` |
 | Headless run wants network | Use `--offline` for non-provider startup operations |
 | Autonomous mode off | Interactive mode is prompt-less by design; use `prime-agent --autonomous "task"` for bounded self-driving |
 

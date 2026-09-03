@@ -59,7 +59,7 @@ reach the model server).
 
 ## prime-agent kernel — important caveat
 
-Its persistent IPython kernel executes model-generated Python with the
+Its persistent Python kernel executes model-generated Python with the
 agent's user permissions. That's user-space process isolation for
 lifecycle/recovery — **not** a security sandbox. The container boundary
 contains it; nothing else does.

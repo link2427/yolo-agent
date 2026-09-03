@@ -51,10 +51,10 @@ These cannot be baked into the image; they are the actual security boundary.
   `PI_TELEMETRY`); umask 077; per-agent config dirs `chmod 700`.
 - Agent versions + skill repos pinned with sha256 verification; builds fail
   on mismatch ([PINS.md](PINS.md)). prime-agent's kernel runtime is
-  bootstrapped during the build and verified (uv + Python 3.11 + ipykernel +
+  bootstrapped during the build and verified (uv + Python 3.11 +
   `prime-agent-runtime`) — no first-run downloads.
 - prime-agent telemetry disabled (`telemetry.enabled: false` baked + env).
-- **prime-agent kernel caveat:** its persistent IPython kernel executes
+- **prime-agent kernel caveat:** its persistent Python kernel executes
   model-generated Python with the agent's user permissions. It lives in
   `~/.prime/agent/kernel-venv` (inside the volume-populated home) — it is
   user-space process isolation for lifecycle/recovery, **not** a security

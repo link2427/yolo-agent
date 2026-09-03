@@ -54,4 +54,4 @@ kill "$openhands_pid" 2>/dev/null || true
 wait "$openhands_pid" 2>/dev/null || true
 test "$ok" -eq 1
 
-echo "full-profile smoke tests passed"
+echo "smoke tests passed"

@@ -81,5 +81,5 @@ detaching.)
 | `/opt/aider-venv` | aider's isolated Python venv |
 | `/opt/deepseek-harness` | Locked DeepSeek Harness npm installation |
 | `~/.dsh` | Persistent DeepSeek Harness profiles, settings, and sessions |
-| `/opt/prime…` → `~/.prime/agent/kernel-venv` | prime-agent's IPython kernel |
+| `/opt/prime…` → `~/.prime/agent/kernel-venv` | prime-agent's Python kernel |
 | `/tmp/code-server.log`, `/tmp/ttyd.log` | Web server logs |

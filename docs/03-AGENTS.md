@@ -49,10 +49,10 @@ VLLM_BASE_URL=http://<host>:8000/v1 VLLM_MODEL=<model> /opt/yolo/configure-agent
 
 - Prime Intellect agent (pi lineage); configs `~/.prime/agent/models.json` +
   `~/.prime/agent/settings.json` (telemetry off)
-- **Kernel**: persistent IPython runtime, pre-bootstrapped at build time —
-  uv → Python 3.11 → `~/.prime/agent/kernel-venv` (ipykernel +
-  `prime-agent-runtime` (rlm) + dill + requests/httpx/pyyaml/tomli/dotenv/
-  pandas/numpy/scipy/bs4/lxml/pydantic/tyro). No first-run downloads.
+- **Kernel**: persistent Python runtime, pre-bootstrapped at build time —
+  uv → Python 3.11 → `~/.prime/agent/kernel-venv` (`prime-agent-runtime`
+  (rlm) + dill + requests/httpx/pyyaml/tomli/dotenv/pandas/numpy/scipy/
+  bs4/lxml/pydantic/tyro). No first-run downloads.
 - YOLO: no permission-prompt system; headless autonomous runs use
   `prime-agent --autonomous [--autonomous-gate …] --offline "task"`
 - Sessions/daemon: `prime-agent agents` / `prime-agent attach <agent>` /

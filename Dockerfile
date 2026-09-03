@@ -140,8 +140,7 @@ CMD ["/bin/bash", "-l"]
 ARG VERSION
 ARG VCS_REF
 LABEL org.opencontainers.image.version="${VERSION}" \
-      org.opencontainers.image.revision="${VCS_REF}" \
-      org.opencontainers.image.variant="full"
+      org.opencontainers.image.revision="${VCS_REF}"
 
 # Build-only validation target. CI and `docker buildx bake` execute this;
 # it is never published.

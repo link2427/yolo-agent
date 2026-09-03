@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 #
-# Install prime-agent (Prime Intellect) with its IPython kernel runtime.
+# Install prime-agent (Prime Intellect) with its Python kernel runtime.
 #
 # The release tarball is verified against the OFFICIAL SHA256SUMS published in
 # the GitHub release. The npm postinstall then bootstraps the kernel runtime:
-#   uv -> Python 3.11 -> ~/.prime/agent/kernel-venv with ipykernel,
-#   prime-agent-runtime (rlm), dill and the default RLM packages.
+#   uv -> Python 3.11 -> ~/.prime/agent/kernel-venv with prime-agent-runtime
+#   (rlm), dill, and the default RLM packages. 0.9.1 uses a custom rlm REPL,
+#   not ipykernel.
 #
 # The postinstall wraps the bootstrap in try/catch ("postinstall setup
 # skipped"), so a silent failure would NOT fail npm. We therefore re-verify
@@ -39,7 +40,7 @@ rm -f "/tmp/prime-agent-${PRIME_AGENT_VERSION}.tgz" /tmp/prime-agent.SHA256SUMS
 # --- hard verification (postinstall swallows failures) -----------------------
 KERNEL_PYTHON="/home/agent/.prime/agent/kernel-venv/bin/python"
 test -x "$KERNEL_PYTHON" || { echo "ERROR: kernel python missing at $KERNEL_PYTHON" >&2; exit 1; }
-"$KERNEL_PYTHON" -c "import ipykernel, rlm; print('prime-agent kernel OK (ipykernel + rlm)')"
+"$KERNEL_PYTHON" -c "import rlm, dill, numpy; print('prime-agent kernel OK (rlm)')"
 test -x /home/agent/.local/bin/uv || { echo "ERROR: uv missing" >&2; exit 1; }
 prime-agent --version > /tmp/prime-agent.version 2>&1
 # prime-agent prints its version on stderr — check the captured file
@@ -47,4 +48,4 @@ grep -q "$PRIME_AGENT_VERSION" /tmp/prime-agent.version
 command -v prime-agent >/dev/null || { echo "ERROR: prime-agent not on PATH" >&2; exit 1; }
 rm -f /tmp/prime-agent.version
 
-echo ">> install-prime-agent.sh: done (CLI + IPython kernel runtime verified)"
+echo ">> install-prime-agent.sh: done (CLI + kernel runtime verified)"

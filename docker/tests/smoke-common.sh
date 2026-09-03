@@ -36,7 +36,7 @@ test ! -w /opt
 test "$(find / -xdev -type f -perm /6000 2>/dev/null | wc -l)" -eq 0
 
 test -x "$HOME/.prime/agent/kernel-venv/bin/python"
-"$HOME/.prime/agent/kernel-venv/bin/python" -c 'import ipykernel, rlm'
+"$HOME/.prime/agent/kernel-venv/bin/python" -c 'import rlm, dill, numpy'
 test -x "$HOME/.local/bin/uv"
 jq -e '.telemetry.enabled == false' "$HOME/.prime/agent/settings.json" >/dev/null
 test "$DSH_HOME" = "$HOME/.dsh"
