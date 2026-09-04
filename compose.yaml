@@ -1,5 +1,5 @@
 x-yolo-agent: &yolo-agent
-  image: ${YOLO_IMAGE:-yolo-agent:2.0.1}
+  image: ${YOLO_IMAGE:-yolo-agent:1.2.1}
   user: "10001:10001"
   read_only: true
   cap_drop:
