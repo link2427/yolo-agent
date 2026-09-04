@@ -27,7 +27,7 @@ docker buildx bake
 docker buildx bake images
 
 # Build directly.
-docker build --target runtime -t yolo-agent:1.2.1 .
+docker build --target runtime -t yolo-agent:1.2.2 .
 ```
 
 Each installer is isolated under `docker/install/`, so changes to the web IDE
