@@ -1,6 +1,6 @@
 [CmdletBinding(PositionalBinding = $false)]
 param(
-    [string]$Image = $(if ($env:YOLO_IMAGE) { $env:YOLO_IMAGE } else { "yolo-agent:1.2.1" }),
+    [string]$Image = $(if ($env:YOLO_IMAGE) { $env:YOLO_IMAGE } else { "yolo-agent:1.2.2" }),
     [Parameter(Position = 0, ValueFromRemainingArguments = $true)]
     [string[]]$Command = @()
 )

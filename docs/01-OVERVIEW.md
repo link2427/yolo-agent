@@ -37,6 +37,8 @@ air-gapped internal network, so every web surface is exposed by default.
   CI, and tagged GHCR releases.
 - 1.2 drops the headless profile and adds OpenHands.
 - 1.2.1 defaults the local vLLM model to Qwen3.8-27B and enables Qwen
-  reasoning effort (off/low/medium/high) for every agent.
+  reasoning effort for every agent.
+- 1.2.2 uses the official Qwen3.8-27B effort levels: xhigh (default),
+  medium, and low. `off` disables thinking.
 
 See CHANGELOG.md and history/README.md for the recovery boundary.

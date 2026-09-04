@@ -14,7 +14,7 @@ VLLM_BASE_URL=http://<host>:8000/v1 VLLM_MODEL=<model> /opt/yolo/configure-agent
 - Standalone binary; config `~/.config/opencode/opencode.json`
 - YOLO: `"permission": "allow"` — auto-approves every tool
 - Run: `opencode` → `/models` to select the model; `/help` in-session
-- Reasoning: Qwen3.8 variants `low` / `medium` / `high` (default from
+- Reasoning: Qwen3.8 variants `low` / `medium` / `xhigh` (default from
   `VLLM_REASONING_EFFORT`); cycle with `variant_cycle`
 - Sessions: resume with `opencode --continue` (or `/sessions`)
 - Skills: reads `~/.agents/skills/` (auto)
@@ -27,7 +27,7 @@ VLLM_BASE_URL=http://<host>:8000/v1 VLLM_MODEL=<model> /opt/yolo/configure-agent
   `defaultProjectTrust: always` silences even the trust prompt; telemetry off
   (`PI_OFFLINE=1` etc. baked)
 - Run: `pi --model vllm/<model>` or `pi` then `/model`
-- Reasoning: `/effort` or `--thinking off|low|medium|high` (vLLM Qwen
+- Reasoning: `/effort` or `--thinking off|low|medium|xhigh` (vLLM Qwen
   chat-template thinking)
 - Sessions: `pi agents` / `pi attach <id>` / `pi --resume <id>`
 
@@ -57,7 +57,7 @@ VLLM_BASE_URL=http://<host>:8000/v1 VLLM_MODEL=<model> /opt/yolo/configure-agent
   uv → Python 3.11 → `~/.prime/agent/kernel-venv` (`prime-agent-runtime`
   (rlm) + dill + requests/httpx/pyyaml/tomli/dotenv/pandas/numpy/scipy/
   bs4/lxml/pydantic/tyro). No first-run downloads.
-- Reasoning: `/effort` or `--thinking off|low|medium|high` (same Qwen
+- Reasoning: `/effort` or `--thinking off|low|medium|xhigh` (same Qwen
   thinking config as pi)
 - YOLO: no permission-prompt system; headless autonomous runs use
   `prime-agent --autonomous [--autonomous-gate …] --offline "task"`
@@ -77,8 +77,9 @@ VLLM_BASE_URL=http://<host>:8000/v1 VLLM_MODEL=<model> /opt/yolo/configure-agent
 - Headless task: `dsh --profile headless "inspect this repository"`.
 - Direct UI process inside a terminal: `dsh web` (upstream binds container
   loopback; use the Compose `deepseek` service to publish it on the host).
-- Reads `DEEPSEEK_API_KEY` from the runtime environment. Put the key only in
-  ignored `config/yolo.env`; it is never baked into an image or archive.
+- Uses the same local vLLM endpoint as the other agents
+  (`~/.dsh/settings.yaml` via `configure-dsh.sh`). Do not set
+  `DEEPSEEK_API_KEY` or the DeepSeek cloud catalog appears.
 - The Harness can read/edit/run anything available to uid 10001 inside the
   container, but receives no Docker socket, capabilities, sudo, or host root.
 

@@ -9,7 +9,7 @@
 #   VLLM_MODEL=<model id served by the endpoint>
 # Optional env:
 #   VLLM_API_KEY=<key>                        (most local servers need none)
-#   VLLM_REASONING_EFFORT=high                (off|low|medium|high; Qwen thinking)
+#   VLLM_REASONING_EFFORT=xhigh               (off|low|medium|xhigh; Qwen3.8)
 #   LM_STUDIO_MODEL=...                       (only with LM_STUDIO_BASE_URL)
 #
 # YOLO settings baked here (never ask permission):
@@ -34,11 +34,11 @@ VLLM_BASE_URL="${VLLM_BASE_URL:-}"
 
 if [[ -n "$LM_STUDIO_BASE_URL" ]]; then
   BASE_URL="$LM_STUDIO_BASE_URL"
-  OC_PROVIDER="lm-studio"
+  OC_PROVIDER="lmstudio"
   MODEL="${LM_STUDIO_MODEL:-${VLLM_MODEL:-}}"
 elif [[ -n "$VLLM_BASE_URL" ]]; then
   BASE_URL="$VLLM_BASE_URL"
-  OC_PROVIDER="openai"
+  OC_PROVIDER="vllm"
   MODEL="${VLLM_MODEL:-}"
 else
   echo "usage: VLLM_BASE_URL=... VLLM_MODEL=... [VLLM_API_KEY=...] $(basename "$0")" >&2
@@ -49,13 +49,15 @@ BASE_URL="${BASE_URL%/}"
 [[ -n "$MODEL" ]] || { echo "ERROR: set VLLM_MODEL (or LM_STUDIO_MODEL) to the model id served by $BASE_URL" >&2; exit 1; }
 API_KEY="${VLLM_API_KEY:-local}"
 
-# Qwen3.8 thinking levels. Default high for coding agents. `off` disables
-# enable_thinking; low/medium/high are sent as reasoning_effort.
-VLLM_REASONING_EFFORT="${VLLM_REASONING_EFFORT:-high}"
+# Qwen3.8-27B official reasoning_effort values: xhigh (default), medium, low.
+# `off` is not a Qwen effort level; it sets enable_thinking=false (instruct mode).
+# `high` is accepted as an alias for xhigh.
+VLLM_REASONING_EFFORT="${VLLM_REASONING_EFFORT:-xhigh}"
 case "$VLLM_REASONING_EFFORT" in
-  off|low|medium|high) ;;
-  *) echo "WARN: VLLM_REASONING_EFFORT='$VLLM_REASONING_EFFORT' is not off|low|medium|high; using high" >&2
-     VLLM_REASONING_EFFORT="high" ;;
+  high) VLLM_REASONING_EFFORT="xhigh" ;;
+  off|low|medium|xhigh) ;;
+  *) echo "WARN: VLLM_REASONING_EFFORT='$VLLM_REASONING_EFFORT' is not off|low|medium|xhigh; using xhigh" >&2
+     VLLM_REASONING_EFFORT="xhigh" ;;
 esac
 if [[ "$VLLM_REASONING_EFFORT" == "off" ]]; then
   ENABLE_THINKING=false
@@ -79,7 +81,7 @@ case "$VLLM_CONTEXT" in
   ""|[0-9]*) ;;
   *) echo "WARN: VLLM_CONTEXT='$VLLM_CONTEXT' is not numeric; ignoring" >&2; VLLM_CONTEXT="" ;;
 esac
-MODEL_ENTRY_JSON="{ \"id\": \"$MODEL\", \"name\": \"$MODEL\", \"reasoning\": true, \"thinkingLevelMap\": { \"off\": \"off\", \"minimal\": null, \"low\": \"low\", \"medium\": \"medium\", \"high\": \"high\", \"xhigh\": null, \"max\": null }"
+MODEL_ENTRY_JSON="{ \"id\": \"$MODEL\", \"name\": \"$MODEL\", \"reasoning\": true, \"thinkingLevelMap\": { \"off\": \"off\", \"minimal\": null, \"low\": \"low\", \"medium\": \"medium\", \"high\": \"xhigh\", \"xhigh\": \"xhigh\", \"max\": null }"
 LIMIT_JSON=""
 if [[ -n "$VLLM_CONTEXT" ]]; then
   MODEL_ENTRY_JSON+=", \"contextWindow\": $VLLM_CONTEXT, \"maxTokens\": 32768"
@@ -94,7 +96,7 @@ OC_MODEL_JSON="${LIMIT_JSON}
           \"variants\": {
             \"low\": { \"reasoningEffort\": \"low\" },
             \"medium\": { \"reasoningEffort\": \"medium\" },
-            \"high\": { \"reasoningEffort\": \"high\" }
+            \"xhigh\": { \"reasoningEffort\": \"xhigh\" }
           }"
 
 mkdir -p "$HOME/.config/opencode" "$HOME/.pi/agent" "$HOME/.config/goose" "$HOME/.prime/agent"
@@ -105,9 +107,15 @@ cat > "$HOME/.config/opencode/opencode.json" <<EOF
 {
   "\$schema": "https://opencode.ai/config.json",
   "permission": "allow",
-  "model": "$MODEL",
+  "autoupdate": false,
+  "share": "disabled",
+  "enabled_providers": ["$OC_PROVIDER"],
+  "model": "$OC_PROVIDER/$MODEL",
+  "small_model": "$OC_PROVIDER/$MODEL",
   "provider": {
     "$OC_PROVIDER": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "vLLM (local)",
       "options": {
         "baseURL": "$BASE_URL",
         "apiKey": "{env:VLLM_API_KEY}"
@@ -123,10 +131,15 @@ cat > "$HOME/.config/opencode/opencode.json" <<EOF
 EOF
 
 # --- pi: never trust-prompt, telemetry off, endpoint -------------------------
+PI_THINKING="$VLLM_REASONING_EFFORT"
+[[ "$PI_THINKING" == "off" ]] || true
 cat > "$HOME/.pi/agent/settings.json" <<EOF
 {
   "defaultProjectTrust": "always",
-  "enableInstallTelemetry": false
+  "enableInstallTelemetry": false,
+  "defaultProvider": "vllm",
+  "defaultModel": "$MODEL",
+  "defaultThinkingLevel": "$PI_THINKING"
 }
 EOF
 cat > "$HOME/.pi/agent/models.json" <<EOF
@@ -175,36 +188,34 @@ cat > "$HOME/.prime/agent/settings.json" <<EOF
 {
   "telemetry": {
     "enabled": false
-  }
+  },
+  "defaultProvider": "vllm",
+  "defaultModel": "$MODEL",
+  "defaultThinkingLevel": "$PI_THINKING"
 }
 EOF
 
-# --- goose: autonomous mode + endpoint (key stays in env) --------------------
-# With VLLM_CONTEXT set, a custom provider file carries the real context
-# window (goose's built-in catalog defaults Qwen-class ids to 128k).
-GOOSE_PROVIDER_NAME="openai"
-if [[ -n "$VLLM_CONTEXT" ]]; then
-  GOOSE_PROVIDER_NAME="vllm"
-  mkdir -p "$HOME/.config/goose/custom_providers"
-  cat > "$HOME/.config/goose/custom_providers/vllm.json" <<EOF
+# --- goose: local vLLM only (no cloud catalog) -------------------------------
+GOOSE_CONTEXT="${VLLM_CONTEXT:-262144}"
+mkdir -p "$HOME/.config/goose/custom_providers"
+cat > "$HOME/.config/goose/custom_providers/vllm.json" <<EOF
 {
   "name": "vllm",
   "engine": "openai",
   "display_name": "vLLM (local)",
-  "description": "Local vLLM endpoint with explicit context window",
-  "api_key_env": "OPENAI_API_KEY",
+  "description": "Local vLLM endpoint",
+  "api_key_env": "VLLM_API_KEY",
   "base_url": "$BASE_URL/chat/completions",
   "models": [
-    { "name": "$MODEL", "context_limit": $VLLM_CONTEXT }
+    { "name": "$MODEL", "context_limit": $GOOSE_CONTEXT }
   ],
   "supports_streaming": true,
   "requires_auth": false
 }
 EOF
-fi
 cat > "$HOME/.config/goose/config.yaml" <<EOF
 GOOSE_MODE: auto
-GOOSE_PROVIDER: $GOOSE_PROVIDER_NAME
+GOOSE_PROVIDER: vllm
 GOOSE_MODEL: $MODEL
 OPENAI_HOST: $OPENAI_HOST
 OPENAI_REASONING_EFFORT: $VLLM_REASONING_EFFORT
@@ -225,28 +236,47 @@ if [[ -n "$VLLM_CONTEXT" ]]; then
 }
 EOF
 fi
-cat > "$HOME/.aider.conf.yml" <<EOF
+if [[ "$ENABLE_THINKING" == "true" ]]; then
+  cat > "$HOME/.aider.conf.yml" <<EOF
 yes-always: true
 model: $MODEL
 openai-api-base: $BASE_URL
+openai-api-key: $API_KEY
 no-show-model-warnings: true
 reasoning-effort: $VLLM_REASONING_EFFORT
 extra-params:
   extra_body:
     chat_template_kwargs:
-      enable_thinking: $ENABLE_THINKING
+      enable_thinking: true
+      preserve_thinking: true
     reasoning_effort: $VLLM_REASONING_EFFORT
 $AIDER_METADATA_LINE
 EOF
+else
+  cat > "$HOME/.aider.conf.yml" <<EOF
+yes-always: true
+model: $MODEL
+openai-api-base: $BASE_URL
+openai-api-key: $API_KEY
+no-show-model-warnings: true
+extra-params:
+  extra_body:
+    chat_template_kwargs:
+      enable_thinking: false
+$AIDER_METADATA_LINE
+EOF
+fi
 
 chmod 600 "$HOME/.aider.conf.yml" "$HOME/.config/goose/config.yaml" "$HOME/.prime/agent/models.json" "$HOME/.prime/agent/settings.json" \
   "$HOME/.pi/agent/models.json" "$HOME/.pi/agent/settings.json"
-[[ -n "$VLLM_CONTEXT" ]] && chmod 600 "$HOME/.aider-model-metadata.json" "$HOME/.config/goose/custom_providers/vllm.json"
+chmod 600 "$HOME/.config/goose/custom_providers/vllm.json"
+[[ -n "$VLLM_CONTEXT" ]] && chmod 600 "$HOME/.aider-model-metadata.json"
 
-if [[ -x /opt/yolo/configure-openhands.sh && -n "${VLLM_BASE_URL:-}" && -n "${VLLM_MODEL:-$MODEL}" ]]; then
-  VLLM_BASE_URL="$BASE_URL" VLLM_MODEL="$MODEL" VLLM_API_KEY="$API_KEY" \
-    VLLM_REASONING_EFFORT="$VLLM_REASONING_EFFORT" \
-    /opt/yolo/configure-openhands.sh
+if [[ -n "${VLLM_BASE_URL:-}" && -n "${VLLM_MODEL:-$MODEL}" ]]; then
+  export VLLM_BASE_URL="$BASE_URL" VLLM_MODEL="$MODEL" VLLM_API_KEY="$API_KEY" \
+    VLLM_REASONING_EFFORT="$VLLM_REASONING_EFFORT" VLLM_CONTEXT="${VLLM_CONTEXT:-}"
+  [[ -x /opt/yolo/configure-openhands.sh ]] && /opt/yolo/configure-openhands.sh
+  [[ -x /opt/yolo/configure-dsh.sh ]] && /opt/yolo/configure-dsh.sh
 fi
 
 # --- skills farm refresh (idempotent; also fixes reused home volumes) --------
@@ -258,8 +288,9 @@ echo "  pi       -> ~/.pi/agent/{settings,models}.json (run: pi --model vllm/$MO
 echo "  goose    -> ~/.config/goose/config.yaml        (run: goose)"
 echo "  aider    -> ~/.aider.conf.yml                  (run: aider)"
 echo "  prime-agent -> ~/.prime/agent/{models,settings}.json (run: prime-agent)"
+echo "  dsh      -> ~/.dsh/settings.yaml               (run: dsh web)"
 echo "  skills   -> ~/.agents/skills ($(find "$HOME/.agents/skills" -maxdepth 1 -mindepth 1 | wc -l) skills)"
-echo "  reasoning -> $VLLM_REASONING_EFFORT (opencode variants low/medium/high; pi/prime-agent /effort)"
+echo "  reasoning -> $VLLM_REASONING_EFFORT (Qwen3.8: off|low|medium|xhigh; pi/prime-agent /effort)"
 if [[ -n "$VLLM_CONTEXT" ]]; then
   echo "  context  -> $VLLM_CONTEXT tokens (must match vLLM --max-model-len)"
   echo "  goose    -> uses the custom 'vllm' provider; if it doesn't auto-select,"

@@ -10,10 +10,11 @@ umask 077
 VLLM_BASE_URL="${VLLM_BASE_URL:-}"
 VLLM_MODEL="${VLLM_MODEL:-}"
 VLLM_API_KEY="${VLLM_API_KEY:-local}"
-VLLM_REASONING_EFFORT="${VLLM_REASONING_EFFORT:-high}"
+VLLM_REASONING_EFFORT="${VLLM_REASONING_EFFORT:-xhigh}"
 case "$VLLM_REASONING_EFFORT" in
-  off|low|medium|high) ;;
-  *) VLLM_REASONING_EFFORT="high" ;;
+  high) VLLM_REASONING_EFFORT="xhigh" ;;
+  off|low|medium|xhigh) ;;
+  *) VLLM_REASONING_EFFORT="xhigh" ;;
 esac
 if [[ "$VLLM_REASONING_EFFORT" == "off" ]]; then
   ENABLE_THINKING=false
@@ -28,7 +29,8 @@ fi
 
 mkdir -p "$HOME/.openhands"
 cfg="$HOME/.openhands/agent_settings.json"
-cat > "$cfg" <<JSONEOF
+if [[ "$ENABLE_THINKING" == "true" ]]; then
+  cat > "$cfg" <<JSONEOF
 {
   "llm": {
     "model": "openai/$VLLM_MODEL",
@@ -37,12 +39,29 @@ cat > "$cfg" <<JSONEOF
     "reasoning_effort": "$VLLM_REASONING_EFFORT",
     "extra_body": {
       "chat_template_kwargs": {
-        "enable_thinking": $ENABLE_THINKING
+        "enable_thinking": true,
+        "preserve_thinking": true
       },
       "reasoning_effort": "$VLLM_REASONING_EFFORT"
     }
   }
 }
 JSONEOF
+else
+  cat > "$cfg" <<JSONEOF
+{
+  "llm": {
+    "model": "openai/$VLLM_MODEL",
+    "base_url": "$VLLM_BASE_URL",
+    "api_key": "$VLLM_API_KEY",
+    "extra_body": {
+      "chat_template_kwargs": {
+        "enable_thinking": false
+      }
+    }
+  }
+}
+JSONEOF
+fi
 chmod 600 "$cfg"
 echo "configure-openhands: $cfg -> openai/$VLLM_MODEL @ $VLLM_BASE_URL (reasoning $VLLM_REASONING_EFFORT)"

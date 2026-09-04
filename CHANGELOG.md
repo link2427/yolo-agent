@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.2.2 - 2026-09-04
+
+- Qwen3.8-27B reasoning effort matches the model card: `xhigh` (default),
+  `medium`, and `low`. `off` turns thinking off (`enable_thinking: false`).
+  `high` is accepted as an alias for `xhigh`. Default model id is
+  `Qwen/Qwen3.8-27B`.
+- Model selectors are local vLLM only. OpenCode uses a custom `vllm`
+  provider with `enabled_providers`. Goose uses only the custom vLLM
+  provider. pi/prime-agent default to vLLM; do not set `OPENAI_API_KEY`
+  or their cloud catalogs appear. DeepSeek Harness writes
+  `~/.dsh/settings.yaml` for the same vLLM route; do not set
+  `DEEPSEEK_API_KEY`.
+
 ## 1.2.1 - 2026-09-04
 
 - Default vLLM model is Qwen3.8-27B (`VLLM_MODEL` in yolo.env).

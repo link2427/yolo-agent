@@ -5,28 +5,29 @@ of `yolo.env`:
 
 ```bash
 VLLM_BASE_URL=http://192.168.1.50:8000/v1   # your server + /v1 path
-VLLM_MODEL=Qwen3.8-27B                      # model id served by that endpoint
-VLLM_REASONING_EFFORT=high                  # off | low | medium | high
+VLLM_MODEL=Qwen/Qwen3.8-27B                 # model id served by that endpoint
+VLLM_REASONING_EFFORT=xhigh                 # off | low | medium | xhigh
 ```
 
 On launch, `/opt/yolo/configure-agents.sh` writes each agent's config:
 
 | Agent | Config written |
 |-------|----------------|
-| opencode | `~/.config/opencode/opencode.json` (provider + model + `permission: allow`) |
+| opencode | `~/.config/opencode/opencode.json` (custom `vllm` provider only) |
 | pi | `~/.pi/agent/models.json` (provider `vllm`, `api: openai-completions`) |
-| goose | `~/.config/goose/config.yaml` (`OPENAI_HOST` derived from the URL) |
+| goose | custom provider `vllm` only (`custom_providers/vllm.json`) |
 | aider | `~/.aider.conf.yml` (`model`, `openai-api-base`, reasoning extra_body) |
 | prime-agent | `~/.prime/agent/models.json` (same schema as pi) |
 | OpenHands | `~/.openhands/agent_settings.json` (same VLLM_* values) |
+| DeepSeek Harness | `~/.dsh/settings.yaml` (custom `vllm` provider only) |
 
 ## Auth
 
 - Most local vLLM / LM Studio servers need no key. Leave
-  `VLLM_API_KEY=local` (safe placeholder) and `OPENAI_API_KEY=local`.
-- If the server requires a token: set the real value in `VLLM_API_KEY`
-  (opencode/pi/prime-agent read it) and `OPENAI_API_KEY` (goose/aider read
-  it). Never bake keys into the image.
+  `VLLM_API_KEY=local`. Do not set `OPENAI_API_KEY`; that unlocks OpenAI's
+  cloud catalog in pi and prime-agent.
+- If the server requires a token: set it in `VLLM_API_KEY` only. Never bake
+  keys into the image.
 
 ## LM Studio alternative
 
@@ -54,19 +55,22 @@ pi/prime-agent use `thinkingFormat: qwen-chat-template` so vLLM receives
 ## Reasoning effort
 
 ```bash
-VLLM_REASONING_EFFORT=high   # off | low | medium | high
+VLLM_REASONING_EFFORT=xhigh   # off | low | medium | xhigh
 ```
+
+Qwen3.8-27B official `reasoning_effort` values are `xhigh` (default), `medium`,
+and `low`. Thinking is on by default. `off` is instruct mode
+(`enable_thinking: false`), not a Qwen effort string.
 
 | Agent | How to change level |
 |-------|---------------------|
-| opencode | variants `low` / `medium` / `high` (cycle with `variant_cycle`) |
+| opencode | variants `low` / `medium` / `xhigh` (cycle with `variant_cycle`) |
 | pi / prime-agent | `/effort` or `--thinking <level>` |
 | goose | `OPENAI_REASONING_EFFORT` in goose config |
 | aider | `reasoning-effort` plus vLLM `extra_body` |
 | OpenHands | `llm.reasoning_effort` in agent_settings.json |
 
-`off` disables `enable_thinking`. The other values are sent as Qwen
-`reasoning_effort`. Confirm the served model id with `curl $VLLM_BASE_URL/models`.
+Confirm the served model id with `curl $VLLM_BASE_URL/models`.
 
 ## Context window (128k → 256k)
 
