@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.1 - 2026-09-04
+
+- Default vLLM model is Qwen3.8-27B (`VLLM_MODEL` in yolo.env).
+- Qwen reasoning effort is configured for every agent: opencode variants
+  (low/medium/high), pi and prime-agent (`qwen-chat-template` + `/effort`),
+  goose, aider, and OpenHands. Override with `VLLM_REASONING_EFFORT`
+  (`off` | `low` | `medium` | `high`, default `high`).
+
 ## 1.2.0 - 2026-09-03
 
 - Removed the headless profile; the image is now a single always-on browser

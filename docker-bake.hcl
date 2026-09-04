@@ -3,7 +3,7 @@ variable "REGISTRY" {
 }
 
 variable "VERSION" {
-  default = "1.2.0"
+  default = "1.2.1"
 }
 
 variable "VCS_REF" {

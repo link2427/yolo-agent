@@ -14,6 +14,8 @@ VLLM_BASE_URL=http://<host>:8000/v1 VLLM_MODEL=<model> /opt/yolo/configure-agent
 - Standalone binary; config `~/.config/opencode/opencode.json`
 - YOLO: `"permission": "allow"` — auto-approves every tool
 - Run: `opencode` → `/models` to select the model; `/help` in-session
+- Reasoning: Qwen3.8 variants `low` / `medium` / `high` (default from
+  `VLLM_REASONING_EFFORT`); cycle with `variant_cycle`
 - Sessions: resume with `opencode --continue` (or `/sessions`)
 - Skills: reads `~/.agents/skills/` (auto)
 
@@ -25,6 +27,8 @@ VLLM_BASE_URL=http://<host>:8000/v1 VLLM_MODEL=<model> /opt/yolo/configure-agent
   `defaultProjectTrust: always` silences even the trust prompt; telemetry off
   (`PI_OFFLINE=1` etc. baked)
 - Run: `pi --model vllm/<model>` or `pi` then `/model`
+- Reasoning: `/effort` or `--thinking off|low|medium|high` (vLLM Qwen
+  chat-template thinking)
 - Sessions: `pi agents` / `pi attach <id>` / `pi --resume <id>`
 
 ## goose 1.48.0
@@ -53,6 +57,8 @@ VLLM_BASE_URL=http://<host>:8000/v1 VLLM_MODEL=<model> /opt/yolo/configure-agent
   uv → Python 3.11 → `~/.prime/agent/kernel-venv` (`prime-agent-runtime`
   (rlm) + dill + requests/httpx/pyyaml/tomli/dotenv/pandas/numpy/scipy/
   bs4/lxml/pydantic/tyro). No first-run downloads.
+- Reasoning: `/effort` or `--thinking off|low|medium|high` (same Qwen
+  thinking config as pi)
 - YOLO: no permission-prompt system; headless autonomous runs use
   `prime-agent --autonomous [--autonomous-gate …] --offline "task"`
 - Sessions/daemon: `prime-agent agents` / `prime-agent attach <agent>` /

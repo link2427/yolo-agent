@@ -36,5 +36,7 @@ air-gapped internal network, so every web surface is exposed by default.
 - 1.0 begins the reorganized source-first build with Docker Bake, Compose,
   CI, and tagged GHCR releases.
 - 1.2 drops the headless profile and adds OpenHands.
+- 1.2.1 defaults the local vLLM model to Qwen3.8-27B and enables Qwen
+  reasoning effort (off/low/medium/high) for every agent.
 
 See CHANGELOG.md and history/README.md for the recovery boundary.

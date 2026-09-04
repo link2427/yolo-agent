@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.12
 
 ARG NODE_IMAGE=node:22-bookworm-slim@sha256:4d676821dff059fd00d277ee4261ef34ea712317fed0737c03941481b5760c96
-ARG VERSION=1.2.0
+ARG VERSION=1.2.1
 ARG VCS_REF=unknown
 
 # Shared system toolchain. The digest is the linux/amd64 Node 22 Bookworm-slim

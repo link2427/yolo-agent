@@ -1,6 +1,6 @@
 [CmdletBinding(PositionalBinding = $false)]
 param(
-    [string]$Image = $(if ($env:YOLO_IMAGE) { $env:YOLO_IMAGE } else { "yolo-agent:1.2.0" })
+    [string]$Image = $(if ($env:YOLO_IMAGE) { $env:YOLO_IMAGE } else { "yolo-agent:1.2.1" })
 )
 
 $ErrorActionPreference = "Stop"

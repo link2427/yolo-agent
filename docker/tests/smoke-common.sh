@@ -47,20 +47,39 @@ grep -q '^GOOSE_MODE: auto' "$HOME/.config/goose/config.yaml"
 grep -q '^yes-always: true' "$HOME/.aider.conf.yml"
 
 VLLM_BASE_URL=http://127.0.0.1:8000/v1 \
-VLLM_MODEL=Qwen/Qwen3-Coder-30B-AWQ \
+VLLM_MODEL=Qwen3.8-27B \
 VLLM_CONTEXT=262144 \
+VLLM_REASONING_EFFORT=high \
   /opt/yolo/configure-agents.sh
 
-jq -e '.provider.openai.models["Qwen/Qwen3-Coder-30B-AWQ"].limit.context == 262144' \
+jq -e '.provider.openai.models["Qwen3.8-27B"].limit.context == 262144' \
   "$HOME/.config/opencode/opencode.json" >/dev/null
+jq -e '.provider.openai.models["Qwen3.8-27B"].reasoning == true' \
+  "$HOME/.config/opencode/opencode.json" >/dev/null
+jq -e '.provider.openai.models["Qwen3.8-27B"].options.reasoningEffort == "high"' \
+  "$HOME/.config/opencode/opencode.json" >/dev/null
+jq -e '.provider.openai.models["Qwen3.8-27B"].variants.low.reasoningEffort == "low"' \
+  "$HOME/.config/opencode/opencode.json" >/dev/null
+jq -e '.providers.vllm.compat.thinkingFormat == "qwen-chat-template"' \
+  "$HOME/.pi/agent/models.json" >/dev/null
+jq -e '.providers.vllm.models[0].reasoning == true' \
+  "$HOME/.pi/agent/models.json" >/dev/null
 jq -e '.providers.vllm.models[0].contextWindow == 262144' \
   "$HOME/.pi/agent/models.json" >/dev/null
+jq -e '.providers.vllm.compat.thinkingFormat == "qwen-chat-template"' \
+  "$HOME/.prime/agent/models.json" >/dev/null
 jq -e '.providers.vllm.models[0].contextWindow == 262144' \
   "$HOME/.prime/agent/models.json" >/dev/null
 jq -e '.models[0].context_limit == 262144' \
   "$HOME/.config/goose/custom_providers/vllm.json" >/dev/null
-jq -e '.["Qwen/Qwen3-Coder-30B-AWQ"].context_window == 262144' \
+grep -q '^OPENAI_REASONING_EFFORT: high' "$HOME/.config/goose/config.yaml"
+jq -e '.["Qwen3.8-27B"].context_window == 262144' \
   "$HOME/.aider-model-metadata.json" >/dev/null
+grep -q '^reasoning-effort: high' "$HOME/.aider.conf.yml"
+jq -e '.llm.reasoning_effort == "high"' \
+  "$HOME/.openhands/agent_settings.json" >/dev/null
+jq -e '.llm.extra_body.chat_template_kwargs.enable_thinking == true' \
+  "$HOME/.openhands/agent_settings.json" >/dev/null
 
 rm -f "$HOME/.git-credentials"
 GITEA_HOST=server4:3000 GITEA_USER=agent GITEA_TOKEN=testtoken123 \

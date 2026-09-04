@@ -10,6 +10,16 @@ umask 077
 VLLM_BASE_URL="${VLLM_BASE_URL:-}"
 VLLM_MODEL="${VLLM_MODEL:-}"
 VLLM_API_KEY="${VLLM_API_KEY:-local}"
+VLLM_REASONING_EFFORT="${VLLM_REASONING_EFFORT:-high}"
+case "$VLLM_REASONING_EFFORT" in
+  off|low|medium|high) ;;
+  *) VLLM_REASONING_EFFORT="high" ;;
+esac
+if [[ "$VLLM_REASONING_EFFORT" == "off" ]]; then
+  ENABLE_THINKING=false
+else
+  ENABLE_THINKING=true
+fi
 
 [[ -n "$VLLM_BASE_URL" && -n "$VLLM_MODEL" ]] || {
   echo "configure-openhands: set VLLM_BASE_URL and VLLM_MODEL in yolo.env" >&2
@@ -23,9 +33,16 @@ cat > "$cfg" <<JSONEOF
   "llm": {
     "model": "openai/$VLLM_MODEL",
     "base_url": "$VLLM_BASE_URL",
-    "api_key": "$VLLM_API_KEY"
+    "api_key": "$VLLM_API_KEY",
+    "reasoning_effort": "$VLLM_REASONING_EFFORT",
+    "extra_body": {
+      "chat_template_kwargs": {
+        "enable_thinking": $ENABLE_THINKING
+      },
+      "reasoning_effort": "$VLLM_REASONING_EFFORT"
+    }
   }
 }
 JSONEOF
 chmod 600 "$cfg"
-echo "configure-openhands: $cfg -> openai/$VLLM_MODEL @ $VLLM_BASE_URL"
+echo "configure-openhands: $cfg -> openai/$VLLM_MODEL @ $VLLM_BASE_URL (reasoning $VLLM_REASONING_EFFORT)"
