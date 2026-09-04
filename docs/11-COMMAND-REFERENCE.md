@@ -22,7 +22,8 @@
 
 | Task | Command |
 |------|---------|
-| Reconfigure all agents for the endpoint | `VLLM_BASE_URL=… VLLM_MODEL=… /opt/yolo/configure-agents.sh` |
+| Reconfigure all agents for the endpoint | `VLLM_BASE_URL=… VLLM_MODEL=… [VLLM_REASONING_EFFORT=high] /opt/yolo/configure-agents.sh` |
+| Set Qwen reasoning effort | `VLLM_REASONING_EFFORT=off\|low\|medium\|high` then reconfigure |
 | Reconfigure git for Gitea | `GITEA_HOST=… [GITEA_TOKEN=…|GIT_SSH=1] /opt/yolo/configure-git.sh` |
 | Rebuild the skills farm | `/opt/yolo/make-skill-farm.sh` |
 | List baked extension versions | `cat /opt/yolo/EXTENSIONS-MANIFEST.txt` |

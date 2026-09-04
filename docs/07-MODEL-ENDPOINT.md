@@ -5,7 +5,8 @@ of `yolo.env`:
 
 ```bash
 VLLM_BASE_URL=http://192.168.1.50:8000/v1   # your server + /v1 path
-VLLM_MODEL=Qwen/Qwen3-Coder-30B-AWQ         # model id served by that endpoint
+VLLM_MODEL=Qwen3.8-27B                      # model id served by that endpoint
+VLLM_REASONING_EFFORT=high                  # off | low | medium | high
 ```
 
 On launch, `/opt/yolo/configure-agents.sh` writes each agent's config:
@@ -15,8 +16,9 @@ On launch, `/opt/yolo/configure-agents.sh` writes each agent's config:
 | opencode | `~/.config/opencode/opencode.json` (provider + model + `permission: allow`) |
 | pi | `~/.pi/agent/models.json` (provider `vllm`, `api: openai-completions`) |
 | goose | `~/.config/goose/config.yaml` (`OPENAI_HOST` derived from the URL) |
-| aider | `~/.aider.conf.yml` (`model`, `openai-api-base`) |
+| aider | `~/.aider.conf.yml` (`model`, `openai-api-base`, reasoning extra_body) |
 | prime-agent | `~/.prime/agent/models.json` (same schema as pi) |
+| OpenHands | `~/.openhands/agent_settings.json` (same VLLM_* values) |
 
 ## Auth
 
@@ -42,9 +44,29 @@ curl http://192.168.1.50:8000/v1/models   # list served model ids
 
 ## Compatibility
 
-The configurator sets `supportsDeveloperRole: false` and
-`supportsReasoningEffort: false` for the local provider — the safe defaults
-for vLLM / SGLang / LM Studio (many don't understand the `developer` role).
+The configurator sets `supportsDeveloperRole: false` so local vLLM / SGLang /
+LM Studio servers get a `system` prompt instead of the `developer` role.
+
+Qwen3.8 thinking is on by default. `supportsReasoningEffort` is true, and
+pi/prime-agent use `thinkingFormat: qwen-chat-template` so vLLM receives
+`chat_template_kwargs.enable_thinking` plus `reasoning_effort`.
+
+## Reasoning effort
+
+```bash
+VLLM_REASONING_EFFORT=high   # off | low | medium | high
+```
+
+| Agent | How to change level |
+|-------|---------------------|
+| opencode | variants `low` / `medium` / `high` (cycle with `variant_cycle`) |
+| pi / prime-agent | `/effort` or `--thinking <level>` |
+| goose | `OPENAI_REASONING_EFFORT` in goose config |
+| aider | `reasoning-effort` plus vLLM `extra_body` |
+| OpenHands | `llm.reasoning_effort` in agent_settings.json |
+
+`off` disables `enable_thinking`. The other values are sent as Qwen
+`reasoning_effort`. Confirm the served model id with `curl $VLLM_BASE_URL/models`.
 
 ## Context window (128k → 256k)
 
