@@ -77,8 +77,9 @@ VLLM_BASE_URL=http://<host>:8000/v1 VLLM_MODEL=<model> /opt/yolo/configure-agent
 - Headless task: `dsh --profile headless "inspect this repository"`.
 - Direct UI process inside a terminal: `dsh web` (upstream binds container
   loopback; use the Compose `deepseek` service to publish it on the host).
-- Reads `DEEPSEEK_API_KEY` from the runtime environment. Put the key only in
-  ignored `config/yolo.env`; it is never baked into an image or archive.
+- Uses the same local vLLM endpoint as the other agents
+  (`~/.dsh/settings.yaml` via `configure-dsh.sh`). Do not set
+  `DEEPSEEK_API_KEY` or the DeepSeek cloud catalog appears.
 - The Harness can read/edit/run anything available to uid 10001 inside the
   container, but receives no Docker socket, capabilities, sudo, or host root.
 

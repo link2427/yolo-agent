@@ -88,6 +88,9 @@ jq -e '.llm.reasoning_effort == "xhigh"' \
   "$HOME/.openhands/agent_settings.json" >/dev/null
 jq -e '.llm.extra_body.chat_template_kwargs.enable_thinking == true' \
   "$HOME/.openhands/agent_settings.json" >/dev/null
+grep -q 'id: Qwen/Qwen3.8-27B' "$HOME/.dsh/settings.yaml"
+grep -q 'thinkingFormat: qwen-chat-template' "$HOME/.dsh/settings.yaml"
+grep -q 'xhigh: xhigh' "$HOME/.dsh/settings.yaml"
 
 rm -f "$HOME/.git-credentials"
 GITEA_HOST=server4:3000 GITEA_USER=agent GITEA_TOKEN=testtoken123 \

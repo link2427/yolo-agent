@@ -272,10 +272,11 @@ chmod 600 "$HOME/.aider.conf.yml" "$HOME/.config/goose/config.yaml" "$HOME/.prim
 chmod 600 "$HOME/.config/goose/custom_providers/vllm.json"
 [[ -n "$VLLM_CONTEXT" ]] && chmod 600 "$HOME/.aider-model-metadata.json"
 
-if [[ -x /opt/yolo/configure-openhands.sh && -n "${VLLM_BASE_URL:-}" && -n "${VLLM_MODEL:-$MODEL}" ]]; then
-  VLLM_BASE_URL="$BASE_URL" VLLM_MODEL="$MODEL" VLLM_API_KEY="$API_KEY" \
-    VLLM_REASONING_EFFORT="$VLLM_REASONING_EFFORT" \
-    /opt/yolo/configure-openhands.sh
+if [[ -n "${VLLM_BASE_URL:-}" && -n "${VLLM_MODEL:-$MODEL}" ]]; then
+  export VLLM_BASE_URL="$BASE_URL" VLLM_MODEL="$MODEL" VLLM_API_KEY="$API_KEY" \
+    VLLM_REASONING_EFFORT="$VLLM_REASONING_EFFORT" VLLM_CONTEXT="${VLLM_CONTEXT:-}"
+  [[ -x /opt/yolo/configure-openhands.sh ]] && /opt/yolo/configure-openhands.sh
+  [[ -x /opt/yolo/configure-dsh.sh ]] && /opt/yolo/configure-dsh.sh
 fi
 
 # --- skills farm refresh (idempotent; also fixes reused home volumes) --------
@@ -287,6 +288,7 @@ echo "  pi       -> ~/.pi/agent/{settings,models}.json (run: pi --model vllm/$MO
 echo "  goose    -> ~/.config/goose/config.yaml        (run: goose)"
 echo "  aider    -> ~/.aider.conf.yml                  (run: aider)"
 echo "  prime-agent -> ~/.prime/agent/{models,settings}.json (run: prime-agent)"
+echo "  dsh      -> ~/.dsh/settings.yaml               (run: dsh web)"
 echo "  skills   -> ~/.agents/skills ($(find "$HOME/.agents/skills" -maxdepth 1 -mindepth 1 | wc -l) skills)"
 echo "  reasoning -> $VLLM_REASONING_EFFORT (Qwen3.8: off|low|medium|xhigh; pi/prime-agent /effort)"
 if [[ -n "$VLLM_CONTEXT" ]]; then

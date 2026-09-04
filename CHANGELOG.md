@@ -9,7 +9,9 @@
 - Model selectors are local vLLM only. OpenCode uses a custom `vllm`
   provider with `enabled_providers`. Goose uses only the custom vLLM
   provider. pi/prime-agent default to vLLM; do not set `OPENAI_API_KEY`
-  or their cloud catalogs appear.
+  or their cloud catalogs appear. DeepSeek Harness writes
+  `~/.dsh/settings.yaml` for the same vLLM route; do not set
+  `DEEPSEEK_API_KEY`.
 
 ## 1.2.1 - 2026-09-04
 

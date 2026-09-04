@@ -19,6 +19,7 @@ On launch, `/opt/yolo/configure-agents.sh` writes each agent's config:
 | aider | `~/.aider.conf.yml` (`model`, `openai-api-base`, reasoning extra_body) |
 | prime-agent | `~/.prime/agent/models.json` (same schema as pi) |
 | OpenHands | `~/.openhands/agent_settings.json` (same VLLM_* values) |
+| DeepSeek Harness | `~/.dsh/settings.yaml` (custom `vllm` provider only) |
 
 ## Auth
 
