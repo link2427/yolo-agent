@@ -43,7 +43,8 @@ done
 # --- web IDE -----------------------------------------------------------------
 code-server --version | grep -q "$CODE_SERVER_VERSION"
 ttyd --version | grep -q "$TTYD_VERSION"
-test "$(find "$HOME/.local/share/code-server/extensions" -maxdepth 1 -mindepth 1 | wc -l)" -ge 15
+# 19 declared extensions, 21 entries once VS Code adds the dependency closure.
+test "$(find "$HOME/.local/share/code-server/extensions" -maxdepth 1 -mindepth 1 | wc -l)" -ge 19
 
 # --- runtimes and common tools ----------------------------------------------
 node --version 2>&1 | grep -q '^v22'

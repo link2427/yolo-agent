@@ -15,7 +15,7 @@ so loading a single archive is enough to run that container offline.
 |---|---|---|---|
 | `yolo-agent` | `Dockerfile` | general development | — (this *is* the base) |
 | `yolo-agent-cpp` | `Dockerfile.cpp` | C and C++ projects | offline compilers, cmake, and a mingw-w64 Windows cross toolchain |
-| `yolo-agent-reverse-engineering` | `Dockerfile.reverse` | decompilation and binary analysis | pycdc, pyinstxtractor-ng, decompyle3, jadx, Ghidra, radare2, angr |
+| `yolo-agent-reverse-engineering` | `Dockerfile.reverse` | decompilation and binary analysis | pycdc, pyinstxtractor-ng, pydumpck, uncompyle6, jadx, Ghidra, radare2, angr |
 
 All three contain the same three agents (opencode, pi, DeepSeek Harness), the
 same browser IDE (code-server + ttyd/tmux), and the same Python 3.11 environment
@@ -25,7 +25,8 @@ shape. The difference is the toolchain on top.
 
 - **Agents** — opencode 1.18.30, pi 0.85.1, DeepSeek Harness 0.1.5-rc.1, all
   pre-wired for YOLO mode against your local model endpoint.
-- **Browser IDE** — code-server 4.137.0 with 19 pre-installed extensions, and
+- **Browser IDE** — code-server 4.137.0 with 19 pre-installed extensions (21
+  entries once VS Code's dependency closure is included), and
   ttyd 1.7.7 wrapping a persistent tmux session.
 - **Python** — exactly one environment at `/opt/pyenv`, Python 3.11, ~45
   packages for general development.

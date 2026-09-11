@@ -5,17 +5,26 @@
 # Scope: .exe / .pyc extraction and Python bytecode decompilation, plus native
 # binary inspection and emulation.
 #
-# Installed after the common set, because a few of these must win a shared
+# Installed after the common set, because a couple of these must win a shared
 # dependency. Read the notes before changing anything.
 #
-#   * xdis is pinned to exactly 6.3.0 because pyinstxtractor-ng requires
-#     `xdis==6.3.0`. That is the reason uncompyle6 is NOT installed:
-#     uncompyle6 requires `xdis<6.2.0`, and the two cannot coexist.
-#     - decompyle3 3.9.3 allows `xdis<6.3`; we install it and then verify at
-#       build time that it actually runs (install-reverse-tools.sh fails the
-#       build if it does not).
-#     - pycdc + pycdas (built from source in the reverse image) cover arbitrary
-#       Python bytecode versions, which is what uncompyle6 was there for.
+# THE ONE HARD CONSTRAINT: xdis is pinned to exactly 6.3.0, because
+# pyinstxtractor-ng declares `xdis==6.3.0`. Extraction is the non-negotiable
+# capability here — without it there is nothing to decompile — so every other
+# pin has to live with that.
+#
+#   * decompyle3 is NOT installed. It declares `xdis<6.3`, which is genuinely
+#     unsatisfiable alongside xdis==6.3.0. pip fails the whole install with
+#     ResolutionImpossible rather than silently downgrading, which is how this
+#     was caught. Do not add it back.
+#   * uncompyle6 is present, transitively via pydumpck (pydumpck declares
+#     `uncompyle6>=3.9.0`). Its own metadata also wants `xdis<6.2.0`, so pip
+#     installs it without re-checking; the reverse smoke suite runs its CLI at
+#     build time, which is what proves it actually works against xdis 6.3.0.
+#     Because it is transitive, treat it as best-effort: if a future pydumpck
+#     drops it, add an explicit pin here.
+#   * pycdc + pycdas (built from source in the reverse image) are the
+#     version-agnostic fallback and are always available.
 #
 # Every pin publishes a CPython 3.11 / linux-amd64 wheel; see PINS.md.
 
@@ -26,14 +35,12 @@ pyinstxtractor-ng==2026.7.3
 xdis==6.3.0
 
 # --- Python bytecode decompilers --------------------------------------------
-decompyle3==3.9.3
 # pydumpck is the all-in-one orchestrator: it dispatches to whichever decompiler
 # fits the bytecode version, and handles .exe/.pyz/.pyc/.elf inputs.
-# It also pulls in PyInstaller as a dependency, which is what lets the image
-# smoke test build a real PyInstaller archive to extract. That is a transitive
-# dependency, not a declared one: do not rely on `pyinstaller` being present
-# without pydumpck, and if pydumpck is ever dropped, add an explicit pyinstaller
-# pin here.
+# It also pulls in PyInstaller and uncompyle6 as dependencies. Those are
+# transitive, not declared: the image smoke test relies on PyInstaller to build a
+# real archive, and runs uncompyle6 to verify it works. If pydumpck is ever
+# dropped, add explicit pins for both here.
 pydumpck==1.20.1
 
 # --- native binary inspection / emulation -----------------------------------

@@ -45,4 +45,12 @@ apt-get clean
 # capabilities, so anything setuid would only be dead weight or a hazard.
 find / -xdev -type f -perm /6000 -exec chmod u-s,g-s {} + 2>/dev/null || true
 
+# The unprivileged runtime account. Created here, in the shared base layer, so
+# that every stage (and the final runtime stage, which descends from `base`
+# rather than from the agent stages) can chown to it by name.
+if ! id -u agent >/dev/null 2>&1; then
+  useradd --create-home --uid 10001 --home-dir /home/agent --shell /bin/bash agent
+fi
+
 python3 --version
+id agent

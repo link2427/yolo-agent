@@ -57,7 +57,7 @@ ARG OPENCODE_VERSION
 ARG OPENCODE_SHA256
 ARG PI_VERSION
 ARG PI_SHA256
-RUN useradd --create-home --uid 10001 --home-dir /home/agent --shell /bin/bash agent
+# The agent user is created in the shared `base` layer (system-deps.sh).
 COPY docker/install/install-agents.sh /tmp/install-agents.sh
 RUN OPENCODE_VERSION="${OPENCODE_VERSION}" OPENCODE_SHA256="${OPENCODE_SHA256}" \
     PI_VERSION="${PI_VERSION}" PI_SHA256="${PI_SHA256}" \
@@ -78,7 +78,7 @@ RUN bash /tmp/install-python-env.sh /tmp/requirements-common.txt \
  && rm -f /tmp/requirements-common.txt /tmp/install-python-env.sh
 
 FROM base AS web-ide
-RUN useradd --create-home --uid 10001 --home-dir /home/agent --shell /bin/bash agent
+# The agent user is created in the shared `base` layer (system-deps.sh).
 COPY docker/install/install-web-ide.sh /tmp/install-web-ide.sh
 RUN CODE_SERVER_VERSION="${CODE_SERVER_VERSION}" \
     CODE_SERVER_SHA256="${CODE_SERVER_SHA256}" \

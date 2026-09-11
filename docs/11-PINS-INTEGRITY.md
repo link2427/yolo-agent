@@ -144,7 +144,7 @@ every push and pull request (`docker buildx bake <flavor>-test`).
 |---|---|---|
 | `docker/tests/smoke-common.sh` | all three | uid 10001 and user `agent`; writable `/workspace`, `/home/agent`, `/tmp`; read-only `/usr`, `/opt`; zero setuid files; `opencode`, `pi`, and `dsh` versions (exact strings, from the same ARGs as the build); removed agents absent (`goose`, `aider`, `prime-agent`, `openhands`) and no leftover interpreter directories; code-server and ttyd versions; ≥15 extensions; node v22; Python 3.11 with the common imports; `VIRTUAL_ENV=/opt/pyenv`; `configure-agents.sh` output asserted with `jq`; `configure-git.sh` in both token and SSH mode with mode-600 secrets; HTTP responses from code-server `:8080`, ttyd `:7681`, and the DSH relay `:3081` |
 | `docker/tests/smoke-cpp.sh` | cpp | the compiler and build tools exist; a real ELF64 and a real PE32+ are produced and the PE is checked for a static libstdc++ link; CMake configures, builds, and runs a test suite for linux and cross-builds for Windows; `cpp-build.sh` produces both artifacts; `gdb` attaches (proving `ptrace` works under the toolchain seccomp profile) |
-| `docker/tests/smoke-reverse.sh` | reverse | every tool on PATH; Java 21; the reverse Python packages import in the one venv; a genuine PyInstaller archive is built, extracted without execution, and its bytecode disassembled; `decompyle3` runs; a `.pyc` round trip; radare2, LIEF, and angr load a real binary; `ghidra-headless` resolves Java and starts |
+| `docker/tests/smoke-reverse.sh` | reverse | every tool on PATH; Java 21; the reverse Python packages import in the one venv; a genuine PyInstaller archive is built, extracted without execution, and its bytecode disassembled; `uncompyle6` runs; a `.pyc` round trip; radare2, LIEF, and angr load a real binary; `ghidra-headless` resolves Java and starts |
 
 Two properties of that gate are worth stating plainly:
 
@@ -237,7 +237,7 @@ in a single session, keep the bundles, and treat `SOURCE-COMMIT.txt` plus
 | Artifact | Where | Contains |
 |---|---|---|
 | `/opt/PYTHON-MANIFEST.txt` | in every image | `pip list --format=freeze` for the single `/opt/pyenv` environment |
-| `/opt/yolo/EXTENSIONS-MANIFEST.txt` | in every image | `code-server --list-extensions --show-versions` (the 19-extension pack) |
+| `/opt/yolo/EXTENSIONS-MANIFEST.txt` | in every image | `code-server --list-extensions --show-versions`; 19 declared extensions plus their dependency closure (21 entries) |
 | `/opt/deepseek-harness/package.json` + `pnpm-lock.yaml` | in every image | the pinned `dsh` version and the 561-hash lock |
 | `IMAGE-INSPECT.json` | in each offline bundle | full `docker image inspect` output for the saved tag |
 | `SOURCE-COMMIT.txt` | in each offline bundle | the git commit (`$GITHUB_SHA` in CI) the bundle was built from |
@@ -287,16 +287,21 @@ get it would cost more than the upgrade is worth.
 `uncompyle6` is **not** in the reverse image, and cannot be added to it:
 
 - `pyinstxtractor-ng` requires `xdis==6.3.0` exactly.
-- `uncompyle6` requires `xdis<6.2.0`.
-- Both requirements are on the same shared dependency, in the same environment, so
-  they cannot coexist.
+- `decompyle3` requires `xdis<6.3`, and `uncompyle6` requires `xdis<6.2.0`.
+- All three land on the same shared dependency in the same environment.
 
 `pyinstxtractor-ng` is the non-negotiable one: without it a PyInstaller `.exe`
 cannot be unpacked at all, which is the first step of the workflow the image
-exists for. What replaces `uncompyle6`:
+exists for. So `xdis==6.3.0` wins, and:
 
-- **`decompyle3`** (3.9.3, whose `xdis<6.3` ceiling is compatible) is kept, and the
-  build fails if it does not actually run — `smoke-reverse.sh` executes it.
+- **`decompyle3` is not installed.** `xdis<6.3` is genuinely unsatisfiable
+  against `xdis==6.3.0`; pip fails the install with `ResolutionImpossible`
+  rather than downgrading silently, which is how this was found.
+- **`uncompyle6` is installed transitively via `pydumpck`**, which declares
+  `uncompyle6>=3.9.0`. pip installed it without re-checking its own `xdis`
+  ceiling, so `smoke-reverse.sh` runs its CLI at build time — that execution,
+  not the resolver, is the evidence it works here. Being transitive it is
+  best-effort: if a future `pydumpck` drops it, it must be pinned explicitly.
 - **`pycdc` / `pycdas`**, built from source in the reverse image, handle arbitrary
   Python bytecode versions. That is the real fallback for bytecode the Python-side
   decompilers cannot read.

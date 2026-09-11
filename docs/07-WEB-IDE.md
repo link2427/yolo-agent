@@ -77,7 +77,7 @@ Two details that catch people out:
   as the agent user inside the container, so the IDE can do anything the agents
   can, including running them from its own terminal.
 
-### Bundled extensions (19, installed at build time)
+### Bundled extensions (19 declared; 21 entries installed)
 
 Extensions come from Open VSX during `docker build` and are baked into the
 image, all listed in `/opt/yolo/EXTENSIONS-MANIFEST.txt`. The runtime container
@@ -230,7 +230,7 @@ ssh -N \
 | Terminal environment | base | base | adds `JAVA_HOME`, `/opt/java/bin`, `GHIDRA_USER_DIR` |
 
 - The browser stack itself is identical in all three images — same code-server
-  and ttyd builds, same 19 extensions, same `server-start.sh`, same ports. Only
+  and ttyd builds, same extension pack, same `server-start.sh`, same ports. Only
   the toolchain on top differs.
 - Each flavor has its own compose file, env file, and home volume, so IDE state
   and agent config are separate: configuring the base container does not affect

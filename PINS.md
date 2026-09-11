@@ -45,7 +45,7 @@ purpose — an entry here means "this ships in an image".
 |------|---------|--------|-----------|
 | code-server | 4.137.0 | `github.com/coder/code-server` standalone tarball | sha256 TOFU¹ `9303165b7f…d6d9c8b` |
 | ttyd | 1.7.7 | `github.com/tsl0922/ttyd` release binary | sha256 **vs official release SHA256SUMS**² (verified at build) |
-| VS Code extension pack | 19 extensions | Open VSX, installed at build time | versions recorded in `/opt/yolo/EXTENSIONS-MANIFEST.txt` inside the image |
+| VS Code extension pack | 19 declared + their dependency closure (21 entries) | Open VSX, installed at build time | every installed extension is recorded in `/opt/yolo/EXTENSIONS-MANIFEST.txt` inside the image |
 
 The C/C++ extension set (`clangd`, `cmake-tools`, `cmake`, `lldb`) is installed
 in **every** image so IntelliSense works in the base container too; only
@@ -91,12 +91,21 @@ environment, so each is pinned to its last 3.11-compatible release:
 
 ### Deliberately not installed: uncompyle6
 
-`uncompyle6` requires `xdis<6.2.0`, while `pyinstxtractor-ng` requires
-`xdis==6.3.0` exactly. The two cannot coexist in one environment, and
-`pyinstxtractor-ng` is the non-negotiable one (it is how a PyInstaller `.exe`
-is unpacked at all). `decompyle3` is kept and is verified to run at build time.
-For bytecode the Python decompilers cannot handle, **pycdc** (C++, built from
-source in the reverse image) is the fallback and covers arbitrary versions.
+`uncompyle6` and `decompyle3` both declare `xdis<6.2.0`, while
+`pyinstxtractor-ng` requires `xdis==6.3.0` exactly. Extraction is the
+non-negotiable capability (without it there is no `.pyc` to decompile at all),
+so the pin on `xdis` wins:
+
+- **`decompyle3` is not installed** — `xdis<6.3` is genuinely unsatisfiable
+  against `xdis==6.3.0`, and pip fails the whole install with
+  `ResolutionImpossible` rather than silently downgrading.
+- **`uncompyle6` is installed transitively via `pydumpck`** (`pydumpck`
+  declares `uncompyle6>=3.9.0`). pip installs it without re-checking its
+  `xdis` constraint, so the reverse smoke suite runs its CLI at build time;
+  that is what proves it works rather than an assumption that it does. Being
+  transitive, it is best-effort — if a future `pydumpck` drops it, pin it here.
+- **`pycdc` + `pycdas`** (C++, built from source in the reverse image) remain
+  the version-agnostic fallback.
 
 ## Reverse-engineering toolchain
 

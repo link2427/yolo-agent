@@ -12,7 +12,7 @@ normal development work.
 | `pyinstxtractor-ng` | `pyinstxtractor-ng <exe>` | Unpack a PyInstaller `.exe` **without executing it** |
 | `pycdc` | `pycdc <file.pyc>` | Decompiler for Python bytecode, built from source (C++) |
 | `pycdas` | `pycdas <file.pyc>` | Disassembler matching `pycdc`, works on any bytecode version |
-| `decompyle3` | `decompyle3 <file.pyc>` | Python decompiler (3.7–3.8 bytecode) |
+| `uncompyle6` | `uncompyle6 <file.pyc>` | Python decompiler (3.7–3.8 bytecode) |
 | `pydumpck` | `pydumpck <file>` | All-in-one orchestrator: dispatches by input type |
 | `xdis` | Python module | Bytecode disassembly library, version-aware |
 | `jadx` | `jadx <file.apk|.dex>` | DEX/APK to Java source (CLI only, no GUI) |
@@ -79,7 +79,7 @@ pydumpck suspicious.exe
 
 ### Which decompiler handles which bytecode version
 
-| Python version | `decompyle3` | `pycdc` | `pycdas` |
+| Python version | `uncompyle6` | `pycdc` | `pycdas` |
 |---|---|---|---|
 | 2.x | no | partial | yes |
 | 3.6 | no | yes | yes |
@@ -94,13 +94,18 @@ all degrade badly above 3.8, and no free tool does 3.11+ well.
 
 ### The honest gaps
 
-**`uncompyle6` is not installed, and cannot be.** It requires `xdis<6.2.0`,
-while `pyinstxtractor-ng` requires `xdis==6.3.0` exactly. The two cannot coexist
-in one environment, and extraction is the non-negotiable capability — without
-it there is nothing to decompile. `decompyle3` is kept instead and is verified
-to run at build time. `pycdc`/`pycdas` cover arbitrary versions as the fallback.
-If you need `uncompyle6` specifically, it must go in a separate image, which
-would violate the one-environment-per-container rule this project follows.
+**`decompyle3` is not installed, and cannot be.** It declares `xdis<6.3`,
+while `pyinstxtractor-ng` requires `xdis==6.3.0` exactly — genuinely
+unsatisfiable in one environment, and pip refuses the install rather than
+downgrading silently. Extraction is the non-negotiable capability, so `xdis`
+wins and `decompyle3` goes.
+
+**`uncompyle6` is present but transitively, via `pydumpck`.** Its metadata also
+wants `xdis<6.2.0`, so pip installed it without re-checking; the reverse smoke
+suite runs its CLI at build time, which is what actually establishes that it
+works here. Treat it as best-effort rather than a guaranteed interface — if a
+future `pydumpck` drops the dependency, it disappears. `pycdc`/`pycdas` cover
+arbitrary bytecode versions as the fallback.
 
 **`pycdc` cannot fully decompile Python 3.11+ bytecode.** It runs and emits
 partial output rather than crashing, and `pycdas` gives you complete

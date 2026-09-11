@@ -15,7 +15,7 @@ instead of one monolith, and the agent surface is deliberately much smaller.
   a `cpp-build.sh` helper, and a smoke test that compiles and asserts on both an
   ELF64 and a PE32+ binary.
 - `yolo-agent-reverse-engineering` (`Dockerfile.reverse`) — pycdc/pycdas (built
-  from source), pyinstxtractor-ng, decompyle3, pydumpck, xdis, jadx 1.5.6,
+  from source), pyinstxtractor-ng, pydumpck, uncompyle6, xdis, jadx 1.5.6,
   Ghidra 12.1.3 headless on Temurin JDK 21, radare2 6.2.2, gdb, angr, capstone,
   unicorn, lief, pefile, pyelftools, binwalk, foremost, and yara. Its smoke test
   builds a real PyInstaller archive, extracts it, and disassembles the result.

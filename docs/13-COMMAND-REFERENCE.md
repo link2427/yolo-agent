@@ -433,7 +433,7 @@ with `if(NOT CMAKE_CROSSCOMPILING)`.
 | `pyinstxtractor-ng` | `/opt/pyenv/bin/pyinstxtractor-ng` | unpacks a PyInstaller archive without running it |
 | `pycdc` | `/usr/local/bin/pycdc` | decompiles Python bytecode (built from source) |
 | `pycdas` | `/usr/local/bin/pycdas` | disassembles Python bytecode |
-| `decompyle3` | `/opt/pyenv/bin/decompyle3` | Python bytecode decompiler |
+| `uncompyle6` | `/opt/pyenv/bin/uncompyle6` | Python bytecode decompiler (via pydumpck) |
 | `pydumpck` | `/opt/pyenv/bin/pydumpck` | all-in-one orchestrator for `.exe`/`.pyz`/`.pyc`/`.elf` |
 | `jadx` | `/usr/local/bin/jadx` → `/opt/jadx/bin/jadx` | DEX/APK to Java source (CLI only; no GUI) |
 | `ghidra-headless` | `/usr/local/bin/ghidra-headless` → `/opt/ghidra/support/analyzeHeadless` | Ghidra's headless analyzer |

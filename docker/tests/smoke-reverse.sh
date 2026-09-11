@@ -30,9 +30,8 @@ assert sys.version_info[:2] == (3, 11), sys.version
 import requests, yaml, pytest, pydantic                                   # noqa: F401
 # ...plus the reverse-engineering set, in the same interpreter.
 import capstone, unicorn, lief, elftools, pefile                          # noqa: F401
-import angr, xdis, decompyle3, pyinstxtractor_ng                          # noqa: F401
+import angr, xdis, pyinstxtractor_ng                                      # noqa: F401
 print("xdis", xdis.__version__)
-print("decompyle3", decompyle3.__version__)
 print("reverse python env OK:", sys.version.split()[0])
 PY
 
@@ -96,10 +95,13 @@ echo ">> pycdas produced $(wc -l < "$work/app.dis") lines from extracted bytecod
 # pydumpck is the all-in-one orchestrator; it must run against the same input.
 pydumpck --help >/dev/null
 
-# --- decompyle3 runs in this environment ------------------------------------
-# Its xdis ceiling is why uncompyle6 is not installed (see
-# requirements-reverse.txt); this proves the one we kept is functional.
-decompyle3 --version >/dev/null
+# --- uncompyle6 runs in this environment ------------------------------------
+# It arrives transitively via pydumpck and its metadata wants xdis<6.2.0 while
+# we pin xdis==6.3.0, so pip installed it without re-checking the constraint.
+# Running the CLI here is what actually proves it works; if it ever fails, drop
+# it from the docs rather than shipping a broken entry point.
+uncompyle6 --version >/dev/null
+echo ">> uncompyle6 CLI is functional against xdis $(/opt/pyenv/bin/python -c 'import xdis;print(xdis.__version__)')"
 
 # --- direct .pyc path: compile, disassemble, attempt decompile ---------------
 cat > "$work/sample.py" <<'PY'

@@ -65,7 +65,7 @@ cat /opt/PYTHON-MANIFEST.txt
 
 ```
 requests, pydantic, pytest, ...        from requirements-common.txt
-+ pyinstxtractor-ng, xdis, decompyle3  from requirements-reverse.txt
++ pyinstxtractor-ng, xdis, pydumpck   from requirements-reverse.txt
 + capstone, unicorn, angr, lief, pefile, pyelftools
 ```
 
