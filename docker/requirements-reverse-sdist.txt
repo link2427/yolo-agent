@@ -1,0 +1,19 @@
+# yolo-agent-reverse-engineering — packages that MUST be built from source.
+#
+# install-python-env.sh installs every other requirements file with
+# `--only-binary=:all:` so a pin with no wheel fails the build instead of
+# silently compiling. This file is the deliberate, narrow exception: it is
+# installed in a second pass without that flag.
+#
+# Keep it as small as possible. Every entry here is a package that cannot be
+# installed any other way, and each one documents why.
+
+# arpy 1.1.1 is pinned by cle (-> angr), and arpy publishes NO wheel for any
+# version below 2.4.0 -- only sdists. It is a pure-Python library, so the sdist
+# build is a trivial setuptools run with no compiled extensions, which is what
+# makes it acceptable to build here.
+#
+# Verified: `pip install --only-binary=:all: arpy==1.1.1` fails with
+# "No matching distribution found"; without the flag it downloads the 6.8 kB
+# sdist and builds.
+arpy==1.1.1

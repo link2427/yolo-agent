@@ -69,10 +69,14 @@ requests, pydantic, pytest, ...        from requirements-common.txt
 + capstone, unicorn, angr, lief, pefile, pyelftools
 ```
 
-`docker/requirements-reverse.txt` documents one deliberate omission
-(`uncompyle6`, which conflicts with `pyinstxtractor-ng` over the exact `xdis`
-version). The details are in
-[06-REVERSE-ENGINEERING.md](06-REVERSE-ENGINEERING.md).
+Because a couple of pins cannot be satisfied from wheels alone, the reverse
+image installs a third file, `docker/requirements-reverse-sdist.txt`, in a
+second pass WITHOUT the `--only-binary` constraint. It currently holds a single
+pure-Python package (`arpy==1.1.1`, pinned exactly by `cle`/`angr`, which has no
+wheel). Every other package in every image comes from a wheel. The reasoning,
+including why `decompyle3` cannot be installed at all, is in
+[06-REVERSE-ENGINEERING.md](06-REVERSE-ENGINEERING.md) and
+[11-PINS-INTEGRITY.md](11-PINS-INTEGRITY.md).
 
 ## Using it
 

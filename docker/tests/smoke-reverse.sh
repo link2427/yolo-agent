@@ -100,7 +100,7 @@ pydumpck --help >/dev/null
 # we pin xdis==6.3.0, so pip installed it without re-checking the constraint.
 # Running the CLI here is what actually proves it works; if it ever fails, drop
 # it from the docs rather than shipping a broken entry point.
-uncompyle6 --version >/dev/null
+uncompyle6 --version >/dev/null 2>&1 || { echo 'uncompyle6 CLI failed:' >&2; uncompyle6 --version; exit 1; }
 echo ">> uncompyle6 CLI is functional against xdis $(/opt/pyenv/bin/python -c 'import xdis;print(xdis.__version__)')"
 
 # --- direct .pyc path: compile, disassemble, attempt decompile ---------------

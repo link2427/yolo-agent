@@ -88,6 +88,7 @@ environment, so each is pinned to its last 3.11-compatible release:
 | numpy | 2.4.6 | 2.5.3 | 2.5 requires ≥ 3.12 |
 | angr | 9.2.213 | 9.3.4 | 9.3 requires ≥ 3.12 |
 | xdis | 6.3.0 | 6.3.0 | held at 6.3.0 because `pyinstxtractor-ng` requires exactly this |
+| capstone | 5.0.6 | 5.0.9 | angr 9.2.213 declares `capstone==5.0.6` exactly |
 
 ### Deliberately not installed: uncompyle6
 
@@ -106,6 +107,19 @@ so the pin on `xdis` wins:
   transitive, it is best-effort — if a future `pydumpck` drops it, pin it here.
 - **`pycdc` + `pycdas`** (C++, built from source in the reverse image) remain
   the version-agnostic fallback.
+
+### One package is built from source, on purpose
+
+`docker/requirements-reverse-sdist.txt` is a second, deliberately tiny pass that
+is installed WITHOUT `--only-binary=:all:`. It exists for `arpy==1.1.1`, which
+`cle` (and therefore `angr`) pins exactly and which publishes no wheel below
+2.4.0 — only sdists. It is pure Python, so the build is a plain setuptools run
+with no compiled extensions. `pip install --only-binary=:all: arpy==1.1.1` fails
+with "No matching distribution found"; without the flag it downloads the 6.8 kB
+sdist and installs.
+
+Everything else in every image is installed from a wheel. Keep that file empty
+if you possibly can.
 
 ## Reverse-engineering toolchain
 

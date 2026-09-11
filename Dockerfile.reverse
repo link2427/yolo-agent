@@ -73,11 +73,16 @@ RUN DSH_VERSION="${DSH_VERSION}" bash /tmp/install-deepseek-harness.sh \
 
 # --- Python 3.11: common set PLUS the reverse-engineering set, one venv -----
 FROM base AS pyenv-reverse
-COPY docker/requirements-common.txt docker/requirements-reverse.txt /tmp/
+COPY docker/requirements-common.txt docker/requirements-reverse.txt \
+     docker/requirements-reverse-sdist.txt /tmp/
 COPY docker/install/install-python-env.sh /tmp/install-python-env.sh
+# The *-sdist file is a second, deliberately narrow pass: those pins have no
+# wheel at all, so they are the only ones built from source. See the file itself.
 RUN bash /tmp/install-python-env.sh \
       /tmp/requirements-common.txt /tmp/requirements-reverse.txt \
- && rm -f /tmp/requirements-common.txt /tmp/requirements-reverse.txt /tmp/install-python-env.sh
+      /tmp/requirements-reverse-sdist.txt \
+ && rm -f /tmp/requirements-common.txt /tmp/requirements-reverse.txt \
+          /tmp/requirements-reverse-sdist.txt /tmp/install-python-env.sh
 
 FROM base AS web-ide
 # The agent user is created in the shared `base` layer (system-deps.sh).

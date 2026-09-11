@@ -29,7 +29,13 @@ test "$(find / -xdev -type f -perm /6000 2>/dev/null | wc -l)" -eq 0
 # --- the three agents --------------------------------------------------------
 opencode --version 2>&1 | grep -Fq "$OPENCODE_VERSION"
 pi --version 2>&1 | grep -Fq "$PI_VERSION"
-dsh --version 2>&1 | grep -Fxq "$DSH_VERSION"
+# Capture output: if the wrapper cannot start, grep alone gives no clue why.
+dsh_version_out="$(dsh --version 2>&1)" || {
+  echo "ERROR: dsh --version failed as $(id -un):" >&2
+  echo "$dsh_version_out" >&2
+  exit 1
+}
+printf '%s\n' "$dsh_version_out" | grep -Fxq "$DSH_VERSION"
 dsh --profile headless --dump-default-config >/dev/null
 
 # The agents that were deliberately removed must not reappear.

@@ -44,7 +44,10 @@ xdis==6.3.0
 pydumpck==1.20.1
 
 # --- native binary inspection / emulation -----------------------------------
-capstone==5.0.9
+# capstone is pinned to exactly what angr 9.2.213 requires. angr declares
+# `capstone==5.0.6`, so a newer pin is unsatisfiable, and 5.0.6 does publish a
+# py3-none-manylinux_x86_64 wheel (verified), so --only-binary is still happy.
+capstone==5.0.6
 unicorn==2.1.4
 angr==9.2.213
 lief==1.0.0
