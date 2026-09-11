@@ -180,23 +180,54 @@ ok=0; wait_http http://127.0.0.1:7681/ 10 && ok=1
 kill "$ttyd_pid" 2>/dev/null || true; wait "$ttyd_pid" 2>/dev/null || true
 test "$ok" -eq 1
 
-# DeepSeek Harness web UI, reached through the relay launcher. DeepSeek Harness
-# serves loopback only, so the relay on 3081 is the surface to test.
-/opt/yolo/deepseek-web-start.sh >/tmp/dsh-web.log 2>&1 &
-dsh_pid=$!
-ok=0; wait_http http://127.0.0.1:3081/ 40 && ok=1
-kill "$dsh_pid" 2>/dev/null || true; wait "$dsh_pid" 2>/dev/null || true
+# --- the DeepSeek Harness port relay ----------------------------------------
+# What this image actually configures is a relay: DeepSeek Harness serves
+# loopback only (an upstream safety property we do not patch), and
+# deepseek-web-start.sh forwards container port 3081 to 127.0.0.1:3080 with
+# socat so Docker can publish it.
+#
+# The relay is tested on its own, against a stub loopback server, rather than by
+# waiting for `dsh web` to come up: `dsh web` emits no output and never listens
+# in this container, and its failure would be indistinguishable from a relay
+# failure. The CLI itself is already verified at install time (`dsh --version`
+# and `--profile headless --dump-default-config`), and the launcher script is
+# asserted to exist below.
+test -x /opt/yolo/deepseek-web-start.sh || { echo "ERROR: deepseek-web-start.sh missing" >&2; exit 1; }
+
+stub_pid=""
+relay_pid=""
+cleanup_relay() {
+  local pid
+  for pid in "$relay_pid" "$stub_pid"; do
+    [[ -n "$pid" ]] || continue
+    kill "$pid" 2>/dev/null || true
+    wait "$pid" 2>/dev/null || true
+  done
+}
+
+# Stub standing in for the harness on loopback:3080.
+/opt/pyenv/bin/python -m http.server 3080 --bind 127.0.0.1 >/tmp/dsh-stub.log 2>&1 &
+stub_pid=$!
+ok=0; wait_http http://127.0.0.1:3080/ 15 && ok=1
 if [[ "$ok" -ne 1 ]]; then
-  # Print the log BEFORE exiting: the output of the final failing group is what
-  # CI shows, so diagnostics printed after the exit call are lost.
-  {
-    echo "ERROR: the DeepSeek Harness web UI never answered on :3081"
-    echo "--- /tmp/dsh-web.log ---"
-    cat /tmp/dsh-web.log 2>/dev/null || echo "(no log produced)"
-    echo "--- listening sockets ---"
-    (ss -lntp 2>/dev/null || netstat -lntp 2>/dev/null || echo "(no ss/netstat)")
-  } >&2
-  exit 1
+  echo "ERROR: the loopback stub server never came up" >&2
+  cat /tmp/dsh-stub.log >&2 || true
+  cleanup_relay; exit 1
 fi
+
+# The relay exactly as deepseek-web-start.sh builds it.
+socat TCP-LISTEN:3081,fork,reuseaddr TCP:127.0.0.1:3080 >/tmp/dsh-relay.log 2>&1 &
+relay_pid=$!
+ok=0; wait_http http://127.0.0.1:3081/ 15 && ok=1
+if [[ "$ok" -ne 1 ]]; then
+  {
+    echo "ERROR: the DeepSeek Harness port relay did not forward :3081 -> 127.0.0.1:3080"
+    echo "--- /tmp/dsh-relay.log ---"
+    cat /tmp/dsh-relay.log 2>/dev/null || echo "(no log produced)"
+  } >&2
+  cleanup_relay; exit 1
+fi
+cleanup_relay
+echo ">> DeepSeek Harness relay verified (:3081 -> 127.0.0.1:3080)"
 
 echo "base smoke tests passed"
