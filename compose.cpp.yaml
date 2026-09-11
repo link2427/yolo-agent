@@ -1,0 +1,73 @@
+# yolo-agent-cpp — C/C++ container with the mingw-w64 cross toolchain.
+#
+# Self-contained on purpose: it carries its own anchor, volume, env file, and
+# seccomp profile so `docker compose -f compose.cpp.yaml up` needs nothing from
+# the other compose files.
+#
+#   docker compose -f compose.cpp.yaml run --rm agent
+#   docker compose -f compose.cpp.yaml up -d
+#
+# The toolchain profile allows ptrace (needed by gdb). Every privileged syscall
+# stays denied — see config/seccomp-toolchain.json.
+#
+# ${...} values below are substituted by Compose on the HOST, so they come from
+# your shell or a .env file in this directory — NOT from config/cpp.env, which
+# is only passed into the container as an env_file:
+#
+#   YOLO_BIND_ADDRESS=127.0.0.1 docker compose -f compose.cpp.yaml up -d
+
+x-yolo-agent-cpp: &yolo-agent-cpp
+  image: ${YOLO_IMAGE:-yolo-agent-cpp:2.0.0}
+  user: "10001:10001"
+  read_only: true
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+    - seccomp=./config/seccomp-toolchain.json
+  env_file:
+    - path: ./config/cpp.env
+      required: false
+  environment:
+    YOLO_FLAVOR: cpp
+  working_dir: /workspace
+  volumes:
+    - ${YOLO_WORKSPACE:-.}:/workspace
+    - yolo-agent-cpp-home:/home/agent
+  tmpfs:
+    - /tmp:rw,nosuid,size=4g
+    - /run:rw,noexec,nosuid,size=64m
+    - /dev/shm:rw,noexec,nosuid,size=512m
+  # Compilation is the point of this container, so the defaults are roomier
+  # than the base image's.
+  mem_limit: ${YOLO_MEM:-12g}
+  cpus: ${YOLO_CPUS:-6}
+  pids_limit: 2048
+  stop_grace_period: 30s
+
+services:
+  agent:
+    <<: *yolo-agent-cpp
+    profiles: [cli]
+    stdin_open: true
+    tty: true
+    command: /bin/bash -l
+
+  server:
+    <<: *yolo-agent-cpp
+    restart: unless-stopped
+    command: /opt/yolo/server-start.sh
+    ports:
+      - ${YOLO_BIND_ADDRESS:-0.0.0.0}:${YOLO_CODE_PORT:-8080}:8080
+      - ${YOLO_BIND_ADDRESS:-0.0.0.0}:${YOLO_TERMINAL_PORT:-7681}:7681
+
+  deepseek:
+    <<: *yolo-agent-cpp
+    restart: unless-stopped
+    command: /opt/yolo/deepseek-web-start.sh
+    ports:
+      - ${YOLO_BIND_ADDRESS:-0.0.0.0}:${YOLO_DSH_PORT:-3080}:3081
+
+volumes:
+  yolo-agent-cpp-home:
+    name: ${YOLO_HOME_VOLUME:-yolo-agent-cpp-home-v1}
