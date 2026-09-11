@@ -129,8 +129,14 @@ RUN ln -sf /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
 
 COPY --from=deepseek-harness /opt/opencode /opt/opencode
 COPY --from=deepseek-harness /opt/pi /opt/pi
-COPY --from=deepseek-harness /usr/local/bin/opencode /usr/local/bin/opencode
-COPY --from=deepseek-harness /usr/local/bin/pi /usr/local/bin/pi
+# Symlinks are recreated, not copied, for the same reason as npm/npx/corepack
+# above: COPY dereferences a symlink source. The installer links
+# /usr/local/bin/pi -> /opt/pi/pi/pi, so copying the link would drop a lone
+# payload into /usr/local/bin stripped from its siblings under /opt/pi/pi, and
+# pi would fail before printing anything. (opencode is a single self-contained
+# binary so it survives either way, but it is linked the same way for symmetry.)
+RUN ln -sf /opt/opencode/opencode /usr/local/bin/opencode \
+ && ln -sf /opt/pi/pi/pi /usr/local/bin/pi
 COPY --from=deepseek-harness /opt/deepseek-harness /opt/deepseek-harness
 COPY --from=deepseek-harness /usr/local/bin/dsh /usr/local/bin/dsh
 
