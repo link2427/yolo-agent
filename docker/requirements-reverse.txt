@@ -1,0 +1,40 @@
+# yolo-agent-reverse-engineering — extra packages layered onto the SAME
+# /opt/pyenv environment defined by requirements-common.txt. There is exactly
+# one Python 3.11 environment in the reverse image; this file only adds to it.
+#
+# Scope: .exe / .pyc extraction and Python bytecode decompilation, plus native
+# binary inspection and emulation.
+#
+# Installed after the common set, because a few of these must win a shared
+# dependency. Read the notes before changing anything.
+#
+#   * xdis is pinned to exactly 6.3.0 because pyinstxtractor-ng requires
+#     `xdis==6.3.0`. That is the reason uncompyle6 is NOT installed:
+#     uncompyle6 requires `xdis<6.2.0`, and the two cannot coexist.
+#     - decompyle3 3.9.3 allows `xdis<6.3`; we install it and then verify at
+#       build time that it actually runs (install-reverse-tools.sh fails the
+#       build if it does not).
+#     - pycdc + pycdas (built from source in the reverse image) cover arbitrary
+#       Python bytecode versions, which is what uncompyle6 was there for.
+#
+# Every pin publishes a CPython 3.11 / linux-amd64 wheel; see PINS.md.
+
+# --- .exe / PyInstaller extraction ------------------------------------------
+# pyinstxtractor-ng unpacks PyInstaller executables and needs no execution of
+# the target, which is what makes it safe on an air-gapped host.
+pyinstxtractor-ng==2026.7.3
+xdis==6.3.0
+
+# --- Python bytecode decompilers --------------------------------------------
+decompyle3==3.9.3
+# pydumpck is the all-in-one orchestrator: it dispatches to whichever decompiler
+# fits the bytecode version, and handles .exe/.pyz/.pyc/.elf inputs.
+pydumpck==1.20.1
+
+# --- native binary inspection / emulation -----------------------------------
+capstone==5.0.9
+unicorn==2.1.4
+angr==9.2.213
+lief==1.0.0
+pyelftools==0.33
+pefile==2024.8.26

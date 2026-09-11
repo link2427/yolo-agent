@@ -1,0 +1,73 @@
+# yolo-agent-reverse-engineering — decompilation and binary-analysis container.
+#
+# Self-contained on purpose: it carries its own anchor, volume, env file, and
+# seccomp profile so `docker compose -f compose.reverse.yaml up` needs nothing
+# from the other compose files.
+#
+#   docker compose -f compose.reverse.yaml run --rm agent
+#   docker compose -f compose.reverse.yaml up -d
+#
+# The toolchain profile allows ptrace (needed by gdb and by debugger-driven
+# unpacking). Every privileged syscall stays denied — see
+# config/seccomp-toolchain.json.
+#
+# ${...} values below are substituted by Compose on the HOST, so they come from
+# your shell or a .env file in this directory — NOT from config/reverse.env,
+# which is only passed into the container as an env_file:
+#
+#   YOLO_BIND_ADDRESS=127.0.0.1 docker compose -f compose.reverse.yaml up -d
+
+x-yolo-agent-reverse: &yolo-agent-reverse
+  image: ${YOLO_IMAGE:-yolo-agent-reverse-engineering:2.0.0}
+  user: "10001:10001"
+  read_only: true
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+    - seccomp=./config/seccomp-toolchain.json
+  env_file:
+    - path: ./config/reverse.env
+      required: false
+  environment:
+    YOLO_FLAVOR: reverse
+  working_dir: /workspace
+  volumes:
+    - ${YOLO_WORKSPACE:-.}:/workspace
+    - yolo-agent-reverse-home:/home/agent
+  tmpfs:
+    - /tmp:rw,nosuid,size=4g
+    - /run:rw,noexec,nosuid,size=64m
+    - /dev/shm:rw,noexec,nosuid,size=512m
+  # Ghidra's JVM and angr's symbolic execution both want headroom.
+  mem_limit: ${YOLO_MEM:-12g}
+  cpus: ${YOLO_CPUS:-6}
+  pids_limit: 2048
+  stop_grace_period: 30s
+
+services:
+  agent:
+    <<: *yolo-agent-reverse
+    profiles: [cli]
+    stdin_open: true
+    tty: true
+    command: /bin/bash -l
+
+  server:
+    <<: *yolo-agent-reverse
+    restart: unless-stopped
+    command: /opt/yolo/server-start.sh
+    ports:
+      - ${YOLO_BIND_ADDRESS:-0.0.0.0}:${YOLO_CODE_PORT:-8080}:8080
+      - ${YOLO_BIND_ADDRESS:-0.0.0.0}:${YOLO_TERMINAL_PORT:-7681}:7681
+
+  deepseek:
+    <<: *yolo-agent-reverse
+    restart: unless-stopped
+    command: /opt/yolo/deepseek-web-start.sh
+    ports:
+      - ${YOLO_BIND_ADDRESS:-0.0.0.0}:${YOLO_DSH_PORT:-3080}:3081
+
+volumes:
+  yolo-agent-reverse-home:
+    name: ${YOLO_HOME_VOLUME:-yolo-agent-reverse-home-v1}
