@@ -61,6 +61,9 @@ packages=(
   xxd hexedit bsdextrautils
   # archive handling used by every one of these tools
   zip unzip xz-utils p7zip-full cabextract
+  # pycdc and pycdas are built from source below, so this image needs a native
+  # toolchain of its own: the base image deliberately ships no compilers.
+  cmake ninja-build gcc g++ make pkg-config
   # radare2 itself, from the pinned release .deb
   /tmp/radare2.deb
 )
@@ -92,12 +95,16 @@ verify "$PYCDC_SHA256" /tmp/pycdc.tgz
 mkdir -p /opt/pycdc-src
 tar -xzf /tmp/pycdc.tgz -C /opt/pycdc-src --strip-components=1
 rm -f /tmp/pycdc.tgz
+command -v cmake >/dev/null || { echo "ERROR: cmake missing; pycdc cannot be built" >&2; exit 1; }
+command -v ninja >/dev/null || { echo "ERROR: ninja missing; pycdc cannot be built" >&2; exit 1; }
 cmake -S /opt/pycdc-src -B /opt/pycdc-src/build -G Ninja \
   -DCMAKE_BUILD_TYPE=Release
 cmake --build /opt/pycdc-src/build --parallel "$(nproc)"
 install -m 0755 /opt/pycdc-src/build/pycdc /usr/local/bin/pycdc
 install -m 0755 /opt/pycdc-src/build/pycdas /usr/local/bin/pycdas
 rm -rf /opt/pycdc-src/build
+test -x /usr/local/bin/pycdc || { echo "ERROR: pycdc not installed" >&2; exit 1; }
+test -x /usr/local/bin/pycdas || { echo "ERROR: pycdas not installed" >&2; exit 1; }
 pycdc 2>&1 | head -1 || true
 pycdas 2>&1 | head -1 || true
 
