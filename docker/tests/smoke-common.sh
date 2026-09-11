@@ -27,15 +27,40 @@ test ! -w /opt
 test "$(find / -xdev -type f -perm /6000 2>/dev/null | wc -l)" -eq 0
 
 # --- the three agents --------------------------------------------------------
-opencode --version 2>&1 | grep -Fq "$OPENCODE_VERSION"
-pi --version 2>&1 | grep -Fq "$PI_VERSION"
-# Capture output: if the wrapper cannot start, grep alone gives no clue why.
-dsh_version_out="$(dsh --version 2>&1)" || {
-  echo "ERROR: dsh --version failed as $(id -un):" >&2
-  echo "$dsh_version_out" >&2
-  exit 1
+# Each check reports the actual output on failure. A silent grep failure here is
+# very hard to debug from CI logs: these all run as uid 10001, while the install
+# steps that created them ran as root, so a permission or PATH problem shows up
+# only at this point.
+check_version() { # $1=command  $2=expected version output
+  local out
+  if ! out="$("$1" --version 2>&1)"; then
+    echo "ERROR: '$1 --version' failed as $(id -un) (uid $(id -u)):" >&2
+    printf '%s\n' "$out" >&2
+    echo "  which $1: $(command -v "$1" || echo NOT-ON-PATH)" >&2
+    exit 1
+  fi
+  if ! printf '%s\n' "$out" | grep -Fq "$2"; then
+    echo "ERROR: '$1 --version' did not report '$2'. Output was:" >&2
+    printf '%s\n' "$out" >&2
+    exit 1
+  fi
 }
-printf '%s\n' "$dsh_version_out" | grep -Fxq "$DSH_VERSION"
+
+# DeepSeek Harness is reached through a generated wrapper, so assert on the
+# pieces it needs rather than only on the version string: the wrapper, the entry
+# point it execs, and the node binary that runs it. All three were the cause of a
+# build failure at least once.
+dsh_entry="/opt/deepseek-harness/node_modules/@deepseek-ai/dsh/lib/bin.js"
+test -x "$(command -v node)"
+test -r "$dsh_entry" || { echo "ERROR: dsh entry point not readable: $dsh_entry" >&2; ls -la "$dsh_entry" >&2 || true; exit 1; }
+test -r /usr/local/bin/dsh || { echo "ERROR: dsh wrapper not present" >&2; exit 1; }
+"$(command -v node)" -e 'process.exit(0)' || { echo "ERROR: node cannot execute as $(id -un)" >&2; exit 1; }
+"$(command -v node)" "$dsh_entry" --version >/dev/null 2>&1 \
+  || { echo "ERROR: the dsh entry point itself fails when run directly as $(id -un):" >&2; "$(command -v node)" "$dsh_entry" --version 2>&1 | head -20 >&2; exit 1; }
+
+check_version opencode "$OPENCODE_VERSION"
+check_version pi "$PI_VERSION"
+check_version dsh "$DSH_VERSION"
 dsh --profile headless --dump-default-config >/dev/null
 
 # The agents that were deliberately removed must not reappear.
