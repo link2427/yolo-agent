@@ -29,6 +29,11 @@ xdis==6.3.0
 decompyle3==3.9.3
 # pydumpck is the all-in-one orchestrator: it dispatches to whichever decompiler
 # fits the bytecode version, and handles .exe/.pyz/.pyc/.elf inputs.
+# It also pulls in PyInstaller as a dependency, which is what lets the image
+# smoke test build a real PyInstaller archive to extract. That is a transitive
+# dependency, not a declared one: do not rely on `pyinstaller` being present
+# without pydumpck, and if pydumpck is ever dropped, add an explicit pyinstaller
+# pin here.
 pydumpck==1.20.1
 
 # --- native binary inspection / emulation -----------------------------------

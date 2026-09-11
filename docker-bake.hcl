@@ -3,7 +3,7 @@
 #   docker buildx bake              # build + smoke-test every image
 #   docker buildx bake images       # build the three shippable images
 #   docker buildx bake base         # one image (also: cpp, reverse)
-#   docker buildx bake test         # smoke suite only
+#   docker buildx bake tests        # smoke suite only (same as the default)
 #
 # Each image is self-contained: it materializes a complete filesystem, so a
 # `docker load` of any single archive is enough to run that container offline.

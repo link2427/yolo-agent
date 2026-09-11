@@ -513,14 +513,14 @@ locally because the script inspects it and then `docker save`s it.
 Products:
 
 ```
-dist/yolo-agent-<flavor>-<version>-offline.zip
-dist/yolo-agent-<flavor>-<version>-offline.zip.sha256
+dist/yolo-agent-<image>-<version>-offline.zip
+dist/yolo-agent-<image>-<version>-offline.zip.sha256
 ```
 
-`<flavor>` is the short name, so the reverse bundle is
-`yolo-agent-reverse-2.0.0-offline.zip` and its archive is
-`yolo-agent-reverse_2.0.0.docker.tar`, even though the image is
-`yolo-agent-reverse-engineering`. Inside each ZIP: the image archive, `bin/`, the
+`<image>` matches the image name, so the reverse bundle is
+`yolo-agent-reverse-engineering-2.0.0-offline.zip` with archive
+`yolo-agent-reverse-engineering_2.0.0.docker.tar`. Inside each ZIP: the image
+archive, `bin/`, the
 compose file, the seccomp profile, the env template, `docs/`, `README.md`,
 `SECURITY.md`, `PINS.md`, `VERSION`, `SOURCE-COMMIT.txt`, `IMAGE-INSPECT.json`,
 `SHA256SUMS`, and `LOAD-OFFLINE.txt`. The staging directory is deleted after

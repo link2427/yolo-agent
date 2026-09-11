@@ -60,17 +60,21 @@ package_one() { # $1 = name:tag
   name="${spec%%:*}"
   tag="${spec#*:}"
 
-  local compose seccomp env_template flavor
+  # `flavor` selects the local env-file/launcher names; `slug` names the bundle
+  # and the image archive, and deliberately matches the IMAGE name so that the
+  # reverse bundle is not silently abbreviated relative to what the docs and the
+  # image tag say.
+  local compose seccomp env_template flavor slug
   case "$name" in
     base)
       compose="compose.yaml";             seccomp="seccomp-base.json"
-      env_template="base.env.example";    flavor="base" ;;
+      env_template="base.env.example";    flavor="base";    slug="base" ;;
     cpp)
       compose="compose.cpp.yaml";         seccomp="seccomp-toolchain.json"
-      env_template="cpp.env.example";     flavor="cpp" ;;
+      env_template="cpp.env.example";     flavor="cpp";     slug="cpp" ;;
     reverse)
       compose="compose.reverse.yaml";     seccomp="seccomp-toolchain.json"
-      env_template="reverse.env.example"; flavor="reverse" ;;
+      env_template="reverse.env.example"; flavor="reverse"; slug="reverse-engineering" ;;
     *)
       echo "ERROR: unknown image name '$name' (expected base, cpp, or reverse)" >&2
       return 1 ;;
@@ -80,9 +84,9 @@ package_one() { # $1 = name:tag
     [[ -f "$f" ]] || { echo "ERROR: missing bundle input: $f" >&2; return 1; }
   done
 
-  local bundle_name="yolo-agent-${flavor}-${version}-offline"
+  local bundle_name="yolo-agent-${slug}-${version}-offline"
   local staging="$output_dir/$bundle_name"
-  local archive="yolo-agent-${flavor}_${version}.docker.tar"
+  local archive="yolo-agent-${slug}_${version}.docker.tar"
   local zip_path="$output_dir/${bundle_name}.zip"
   local zip_checksum="${zip_path}.sha256"
 
