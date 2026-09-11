@@ -442,7 +442,7 @@ with `if(NOT CMAKE_CROSSCOMPILING)`.
 | `gdb`, `objdump`, `readelf`, `strace`, `ltrace` | `/usr/bin` | native inspection |
 | `binwalk`, `foremost`, `yara` | `/usr/bin` | carving and signature scanning |
 | `xxd`, `hexedit`, `7z`, `cabextract` | `/usr/bin` | hex and archive handling |
-| `python3` | `/opt/pyenv/bin/python3` | the single 3.11 environment, with `angr`, `capstone`, `unicorn`, `lief`, `pefile`, `pyelftools`, `xdis` |
+| `python3` | `/opt/pyenv/bin/python3` | the single 3.11 environment, with `capstone`, `unicorn`, `lief`, `pefile`, `pyelftools`, `xdis` |
 
 ```bash
 pyinstxtractor-ng target.exe                    # writes target.exe_extracted/

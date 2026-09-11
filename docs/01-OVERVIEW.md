@@ -15,7 +15,7 @@ so loading a single archive is enough to run that container offline.
 |---|---|---|---|
 | `yolo-agent` | `Dockerfile` | general development | — (this *is* the base) |
 | `yolo-agent-cpp` | `Dockerfile.cpp` | C and C++ projects | offline compilers, cmake, and a mingw-w64 Windows cross toolchain |
-| `yolo-agent-reverse-engineering` | `Dockerfile.reverse` | decompilation and binary analysis | pycdc, pyinstxtractor-ng, pydumpck, uncompyle6, jadx, Ghidra, radare2, angr |
+| `yolo-agent-reverse-engineering` | `Dockerfile.reverse` | decompilation and binary analysis | pycdc, pyinstxtractor-ng, pydumpck, uncompyle6, jadx, Ghidra, radare2 |
 
 All three contain the same three agents (opencode, pi, DeepSeek Harness), the
 same browser IDE (code-server + ttyd/tmux), and the same Python 3.11 environment

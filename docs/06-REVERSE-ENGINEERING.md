@@ -20,7 +20,7 @@ normal development work.
 | `radare2` | `r2 <file>` | Native binary analysis and disassembly |
 | `gdb`, `binutils-multiarch`, `elfutils` | — | Native debugging and object inspection |
 | `binwalk`, `foremost`, `yara` | — | Carving, embedded-file extraction, signature scanning |
-| Python bindings | `import capstone, unicorn, angr, lief, pefile, elftools` | Disassembly, emulation, symbolic execution, format parsing |
+| Python bindings | `import capstone, unicorn, lief, pefile, elftools, xdis` | Disassembly, emulation, format parsing |
 
 Java: **Temurin JDK 21** at `/opt/java`, with `JAVA_HOME` already set. Ghidra 12
 requires Java 21, and Debian 12 ships only OpenJDK 17 — which is why the JDK is
@@ -91,6 +91,14 @@ Read that table as: **disassembly always works, decompilation often does not.**
 For modern bytecode, plan on reading `pycdas` output rather than expecting clean
 Python source. Constant folding, control-flow structuring, and match statements
 all degrade badly above 3.8, and no free tool does 3.11+ well.
+
+### angr is not installed
+
+angr would give you symbolic execution, but it cannot be installed here: its
+dependency closure needs `mulpyplexer` (no wheel, and no release compatible
+with Python 3.11 at all) and an sdist-only `arpy`. Rather than build source
+packages into an air-gapped image, it was dropped. `capstone` and `unicorn`
+still cover disassembly and emulation, and nothing else depends on angr.
 
 ### The honest gaps
 
@@ -201,16 +209,8 @@ print(binary.header.machine_type, len(binary.sections))
 import unicorn
 uc = unicorn.Uc(unicorn.UC_ARCH_X86, unicorn.UC_MODE_64)
 
-# Symbolic execution with angr.
-import angr
-proj = angr.Project("/workspace/target.elf", auto_load_libs=False)
-state = proj.factory.entry_state()
-simgr = proj.factory.simulation_manager(state)
-simgr.explore(find=lambda s: b"correct" in s.posix.dumps(1))
-print(simgr.found)
 ```
 
-`angr` is heavy (its dependency closure is ~41 packages) and pinned to 9.2.213,
 the last release with a CPython 3.11 wheel. See
 [11-PINS-INTEGRITY.md](11-PINS-INTEGRITY.md).
 

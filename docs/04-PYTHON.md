@@ -66,17 +66,13 @@ cat /opt/PYTHON-MANIFEST.txt
 ```
 requests, pydantic, pytest, ...        from requirements-common.txt
 + pyinstxtractor-ng, xdis, pydumpck   from requirements-reverse.txt
-+ capstone, unicorn, angr, lief, pefile, pyelftools
++ capstone, unicorn, lief, pefile, pyelftools
 ```
 
-Because a couple of pins cannot be satisfied from wheels alone, the reverse
-image installs a third file, `docker/requirements-reverse-sdist.txt`, in a
-second pass WITHOUT the `--only-binary` constraint. It currently holds a single
-pure-Python package (`arpy==1.1.1`, pinned exactly by `cle`/`angr`, which has no
-wheel). Every other package in every image comes from a wheel. The reasoning,
-including why `decompyle3` cannot be installed at all, is in
-[06-REVERSE-ENGINEERING.md](06-REVERSE-ENGINEERING.md) and
-[11-PINS-INTEGRITY.md](11-PINS-INTEGRITY.md).
+angr is deliberately absent: its dependency closure needs `mulpyplexer`, which
+has no release usable on Python 3.11, and an sdist-only `arpy`. Every pin that
+remains installs from a wheel, so the build keeps `--only-binary=:all:` with no
+exceptions. Details are in [06-REVERSE-ENGINEERING.md](06-REVERSE-ENGINEERING.md)
 
 ## Using it
 

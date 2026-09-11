@@ -144,7 +144,7 @@ every push and pull request (`docker buildx bake <flavor>-test`).
 |---|---|---|
 | `docker/tests/smoke-common.sh` | all three | uid 10001 and user `agent`; writable `/workspace`, `/home/agent`, `/tmp`; read-only `/usr`, `/opt`; zero setuid files; `opencode`, `pi`, and `dsh` versions (exact strings, from the same ARGs as the build); removed agents absent (`goose`, `aider`, `prime-agent`, `openhands`) and no leftover interpreter directories; code-server and ttyd versions; ≥15 extensions; node v22; Python 3.11 with the common imports; `VIRTUAL_ENV=/opt/pyenv`; `configure-agents.sh` output asserted with `jq`; `configure-git.sh` in both token and SSH mode with mode-600 secrets; HTTP responses from code-server `:8080`, ttyd `:7681`, and the DSH relay `:3081` |
 | `docker/tests/smoke-cpp.sh` | cpp | the compiler and build tools exist; a real ELF64 and a real PE32+ are produced and the PE is checked for a static libstdc++ link; CMake configures, builds, and runs a test suite for linux and cross-builds for Windows; `cpp-build.sh` produces both artifacts; `gdb` attaches (proving `ptrace` works under the toolchain seccomp profile) |
-| `docker/tests/smoke-reverse.sh` | reverse | every tool on PATH; Java 21; the reverse Python packages import in the one venv; a genuine PyInstaller archive is built, extracted without execution, and its bytecode disassembled; `uncompyle6` runs; a `.pyc` round trip; radare2, LIEF, and angr load a real binary; `ghidra-headless` resolves Java and starts |
+| `docker/tests/smoke-reverse.sh` | reverse | every tool on PATH; Java 21; the reverse Python packages import in the one venv; a genuine PyInstaller archive is built, extracted without execution, and its bytecode disassembled; `uncompyle6` runs; a `.pyc` round trip; radare2 and LIEF load a real binary, and capstone disassembles one; `ghidra-headless` resolves Java and starts |
 
 Two properties of that gate are worth stating plainly:
 
@@ -250,7 +250,7 @@ in a single session, keep the bundles, and treat `SOURCE-COMMIT.txt` plus
 docker run --rm yolo-agent:2.0.0 cat /opt/PYTHON-MANIFEST.txt
 docker run --rm yolo-agent:2.0.0 cat /opt/yolo/EXTENSIONS-MANIFEST.txt
 docker run --rm yolo-agent-reverse-engineering:2.0.0 sh -c \
-  'python3 -c "import xdis, angr, numpy; print(numpy.__version__, xdis.__version__)"'
+  'python3 -c "import xdis, capstone, numpy; print(numpy.__version__, xdis.__version__)"'
 
 # From an unpacked offline bundle
 cd yolo-agent-base-2.0.0-offline
@@ -275,7 +275,6 @@ since moved to requiring 3.12 or newer, so they are held at their last
 | Package | Pinned here | Latest release | Why it is held back |
 |---|---|---|---|
 | numpy | 2.4.6 | 2.5.3 | numpy 2.5 requires Python ≥ 3.12 |
-| angr | 9.2.213 | 9.3.4 | angr 9.3 requires Python ≥ 3.12 |
 | xdis | 6.3.0 | 6.3.0 | not behind latest — held at exactly 6.3.0 because `pyinstxtractor-ng` requires `xdis==6.3.0` |
 
 A "why is this old?" question about any of these rows has the same answer: a newer

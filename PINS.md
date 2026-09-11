@@ -86,9 +86,7 @@ environment, so each is pinned to its last 3.11-compatible release:
 | Package | Pinned | Latest | Why |
 |---------|--------|--------|-----|
 | numpy | 2.4.6 | 2.5.3 | 2.5 requires ≥ 3.12 |
-| angr | 9.2.213 | 9.3.4 | 9.3 requires ≥ 3.12 |
 | xdis | 6.3.0 | 6.3.0 | held at 6.3.0 because `pyinstxtractor-ng` requires exactly this |
-| capstone | 5.0.6 | 5.0.9 | angr 9.2.213 declares `capstone==5.0.6` exactly |
 
 ### Deliberately not installed: uncompyle6
 
@@ -108,18 +106,19 @@ so the pin on `xdis` wins:
 - **`pycdc` + `pycdas`** (C++, built from source in the reverse image) remain
   the version-agnostic fallback.
 
-### One package is built from source, on purpose
+### Removed: angr
 
-`docker/requirements-reverse-sdist.txt` is a second, deliberately tiny pass that
-is installed WITHOUT `--only-binary=:all:`. It exists for `arpy==1.1.1`, which
-`cle` (and therefore `angr`) pins exactly and which publishes no wheel below
-2.4.0 — only sdists. It is pure Python, so the build is a plain setuptools run
-with no compiled extensions. `pip install --only-binary=:all: arpy==1.1.1` fails
-with "No matching distribution found"; without the flag it downloads the 6.8 kB
-sdist and installs.
+angr is **not** installed. Its 22-package dependency closure cannot be
+satisfied on Python 3.11 at all:
 
-Everything else in every image is installed from a wheel. Keep that file empty
-if you possibly can.
+- `mulpyplexer`, a direct angr dependency, publishes no wheel and no release
+  compatible with 3.11 (pip reports `from versions: none`).
+- `cle` (also angr) pins `arpy==1.1.1`, which is sdist-only.
+
+Carrying a source-built tail into an air-gapped image is a worse trade than
+losing symbolic execution, so angr was dropped. Nothing else in the image
+depends on it, and every remaining pin installs from a wheel with no
+exceptions. Re-adding it would require a separate image on Python 3.12.
 
 ## Reverse-engineering toolchain
 

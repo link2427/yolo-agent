@@ -9,7 +9,7 @@ never reaches the network again.
 |---|---|---|
 | `yolo-agent` | general development | opencode, pi, DeepSeek Harness, code-server, ttyd/tmux, Python 3.11 with ~45 packages |
 | `yolo-agent-cpp` | C/C++ projects | cmake, ninja, clang, gcc/g++, gdb, ccache + **mingw-w64 cross compiler** producing 64-bit Windows PE binaries |
-| `yolo-agent-reverse-engineering` | decompilation | pycdc/pycdas, pyinstxtractor-ng, pydumpck, uncompyle6, jadx, Ghidra headless, radare2, angr, capstone, unicorn |
+| `yolo-agent-reverse-engineering` | decompilation | pycdc/pycdas, pyinstxtractor-ng, pydumpck, uncompyle6, jadx, Ghidra headless, radare2, capstone, unicorn |
 
 Every image is self-contained: loading one archive is enough to run that
 container offline. There is no separately published base image to chase.

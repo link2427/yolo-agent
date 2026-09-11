@@ -30,7 +30,7 @@ assert sys.version_info[:2] == (3, 11), sys.version
 import requests, yaml, pytest, pydantic                                   # noqa: F401
 # ...plus the reverse-engineering set, in the same interpreter.
 import capstone, unicorn, lief, elftools, pefile                          # noqa: F401
-import angr, xdis, pyinstxtractor_ng                                      # noqa: F401
+import xdis, pyinstxtractor_ng                                            # noqa: F401
 print("xdis", xdis.__version__)
 print("reverse python env OK:", sys.version.split()[0])
 PY
@@ -133,11 +133,10 @@ r2 -q -c 'ij' "$work/hello" | grep -q '"arch"'
 yara --version >/dev/null
 file -b "$work/hello" | grep -q '^ELF 64-bit'
 
-# angr/LIEF/pefile bindings must load a real binary, not just import.
+# LIEF/pefile bindings must load a real binary, not just import.
 /opt/pyenv/bin/python - "$work/hello" <<'PY'
 import sys
 import lief
-import angr  # noqa: F401  (import proves the native binding loads)
 
 binary = lief.parse(sys.argv[1])
 assert binary is not None
@@ -148,6 +147,24 @@ assert machine is not None, "lief parsed no machine type"
 if arch is not None:
     assert machine == arch.X86_64, machine
 print("lief parsed machine:", machine)
+PY
+
+# --- the disassembler/emulator pair works on real bytes ----------------------
+# angr used to be checked here; it is deliberately not installed (its dependency
+# closure cannot resolve on Python 3.11). capstone and unicorn remain the
+# scripted-analysis path, so exercise them rather than only importing them.
+/opt/pyenv/bin/python - <<'PY'
+import capstone
+import unicorn
+
+md = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_64)
+insns = list(md.disasm(b"\x55\x48\x89\xe5\xc3", 0x1000))
+assert [i.mnemonic for i in insns][:2] == ["push", "mov"], [i.mnemonic for i in insns]
+
+uc = unicorn.Uc(unicorn.UC_ARCH_X86, unicorn.UC_MODE_64)
+uc.mem_map(0x1000, 0x1000)
+uc.mem_write(0x1000, b"\x90")
+print("capstone:", len(insns), "insns; unicorn: memory mapped and writable")
 PY
 
 # --- Ghidra headless resolves Java and starts -------------------------------

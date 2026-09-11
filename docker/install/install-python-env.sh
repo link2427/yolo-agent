@@ -39,24 +39,12 @@ for f in "$@"; do
   echo ">> installing $f"
   # --only-binary=:all: is deliberate: it fails the build instead of silently
   # compiling from source, which is how we catch a pin that has no cp311 wheel
-  # before the offline host ever sees it.
-  #
-  # A file named *-sdist.txt is the explicit exception: those packages have no
-  # wheel at all, so they are installed in a second pass without the flag. Keep
-  # such files tiny and justified -- see docker/requirements-reverse-sdist.txt.
-  case "$(basename "$f")" in
-    *-sdist.txt)
-      echo "   (source-built pass: --only-binary NOT applied)"
-      "$VENV/bin/python" -m pip install --no-cache-dir --disable-pip-version-check \
-        --index-url "$PIP_INDEX" \
-        -r "$f"
-      ;;
-    *)
-      "$VENV/bin/python" -m pip install --no-cache-dir --disable-pip-version-check \
-        --index-url "$PIP_INDEX" --only-binary=:all: \
-        -r "$f"
-      ;;
-  esac
+  # before the offline host ever sees it. Every pin in every requirements file
+  # satisfies it; if a future pin cannot, that is a decision to make explicitly
+  # rather than by loosening this flag.
+  "$VENV/bin/python" -m pip install --no-cache-dir --disable-pip-version-check \
+    --index-url "$PIP_INDEX" --only-binary=:all: \
+    -r "$f"
 done
 
 echo ">> python-env: $(find "$VENV/lib" -maxdepth 2 -name 'site-packages' | head -1)"
