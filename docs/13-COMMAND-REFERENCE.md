@@ -342,8 +342,12 @@ repository root — **not** in `config/<flavor>.env`, where they have no effect.
 ```bash
 YOLO_BIND_ADDRESS=127.0.0.1 docker compose up -d
 YOLO_MEM=16g YOLO_CPUS=8 docker compose -f compose.cpp.yaml up -d
-printf 'YOLO_BIND_ADDRESS=127.0.0.1\nYOLO_CODE_PORT=9090\n' > .env   # substitute for good
-docker compose config                                              # show resolved values
+docker compose config                       # show the resolved values
+
+# For settings you want every time, use a .env file in the repository root:
+cat .env
+# YOLO_BIND_ADDRESS=127.0.0.1
+# YOLO_CODE_PORT=9090
 ```
 
 Browser surfaces:
