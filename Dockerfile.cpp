@@ -149,11 +149,16 @@ RUN ln -sf /opt/pyenv/bin/python3 /usr/local/bin/python3 \
  && ln -sf /opt/pyenv/bin/pip3 /usr/local/bin/pip3 \
  && ln -sf /opt/pyenv/bin/pip3 /usr/local/bin/pip \
  && ln -sf /opt/code-server/bin/code-server /usr/local/bin/code-server \
- && mkdir -p /workspace \
+ && mkdir -p /workspace "$HOME/.cache" \
  && chmod 0755 /opt/yolo/*.sh \
  && chown -R root:root /opt/yolo /opt/code-server /opt/pyenv /opt/deepseek-harness /opt/opencode /opt/pi \
  && chown -R agent:agent /home/agent \
  && chown agent:agent /workspace
+
+# The XDG cache root must exist and be agent-owned: /home/agent is a volume, and
+# tools write into it on first run (opencode creates ~/.cache/opencode itself and
+# fails with EACCES if it cannot). Kept as its own RUN so the intent is explicit.
+RUN mkdir -p "$HOME/.cache" && chown -R agent:agent "$HOME/.cache"
 
 # --- C/C++ toolchain --------------------------------------------------------
 # Deliberately its own layer AFTER the agent layers, so a toolchain bump
@@ -165,7 +170,7 @@ COPY docker/install/install-toolchain.sh /tmp/install-toolchain.sh
 RUN bash /tmp/install-toolchain.sh && rm -f /tmp/install-toolchain.sh
 # /home/agent is a volume, so this directory must exist and be agent-owned at
 # image level or ccache cannot write to it at runtime.
-RUN mkdir -p "$CCACHE_DIR" && chown -R agent:agent "$CCACHE_DIR"
+RUN mkdir -p "$CCACHE_DIR" "$HOME/.cache/opencode" && chown -R agent:agent "$HOME/.cache"
 RUN find / -xdev -type f -perm /6000 -exec chmod u-s,g-s {} + 2>/dev/null || true
 
 VOLUME ["/workspace", "/home/agent", "/tmp"]

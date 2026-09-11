@@ -180,11 +180,23 @@ ok=0; wait_http http://127.0.0.1:7681/ 10 && ok=1
 kill "$ttyd_pid" 2>/dev/null || true; wait "$ttyd_pid" 2>/dev/null || true
 test "$ok" -eq 1
 
-# DeepSeek Harness web UI, reached through the relay launcher.
+# DeepSeek Harness web UI, reached through the relay launcher. DeepSeek Harness
+# serves loopback only, so the relay on 3081 is the surface to test.
 /opt/yolo/deepseek-web-start.sh >/tmp/dsh-web.log 2>&1 &
 dsh_pid=$!
-ok=0; wait_http http://127.0.0.1:3081/ 30 && ok=1
+ok=0; wait_http http://127.0.0.1:3081/ 40 && ok=1
 kill "$dsh_pid" 2>/dev/null || true; wait "$dsh_pid" 2>/dev/null || true
-if [[ "$ok" -ne 1 ]]; then cat /tmp/dsh-web.log >&2; exit 1; fi
+if [[ "$ok" -ne 1 ]]; then
+  # Print the log BEFORE exiting: the output of the final failing group is what
+  # CI shows, so diagnostics printed after the exit call are lost.
+  {
+    echo "ERROR: the DeepSeek Harness web UI never answered on :3081"
+    echo "--- /tmp/dsh-web.log ---"
+    cat /tmp/dsh-web.log 2>/dev/null || echo "(no log produced)"
+    echo "--- listening sockets ---"
+    (ss -lntp 2>/dev/null || netstat -lntp 2>/dev/null || echo "(no ss/netstat)")
+  } >&2
+  exit 1
+fi
 
 echo "base smoke tests passed"

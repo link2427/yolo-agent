@@ -174,12 +174,18 @@ RUN ln -sf /opt/pyenv/bin/python3 /usr/local/bin/python3 \
  && ln -sf /opt/pyenv/bin/pip3 /usr/local/bin/pip3 \
  && ln -sf /opt/pyenv/bin/pip3 /usr/local/bin/pip \
  && ln -sf /opt/code-server/bin/code-server /usr/local/bin/code-server \
- && mkdir -p /workspace \
+ && mkdir -p /workspace "$HOME/.cache" \
  && chmod 0755 /opt/yolo/*.sh \
  && chown -R root:root /opt/yolo /opt/code-server /opt/pyenv /opt/deepseek-harness /opt/opencode /opt/pi \
  && chown -R agent:agent /home/agent \
  && chmod 0755 /workspace \
  && chown agent:agent /workspace
+
+# The XDG cache root must exist and be agent-owned: /home/agent is a volume, and
+# tools write into it on first run (opencode creates ~/.cache/opencode itself and
+# fails with EACCES if it cannot). Created separately from the chown above so the
+# intent is explicit rather than incidental.
+RUN mkdir -p "$HOME/.cache" && chown -R agent:agent "$HOME/.cache"
 
 # Node bit from the official image is already stripped; make the whole image
 # setuid-free one more time now that every layer has landed.
