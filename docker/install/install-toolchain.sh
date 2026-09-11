@@ -24,31 +24,37 @@ set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 
 apt-get update
-apt-get install -y --no-install-recommends \
+
+# Package list is an array, not a backslash continuation: a `#` comment inside a
+# continuation ends the command and makes apt try to execute the next line.
+packages=(
   # --- native C/C++ ---
-  gcc g++ make \
-  clang clangd clang-tools-14 \
-  lld lldb \
-  gdb \
-  cmake ninja-build pkg-config \
-  ccache lcov gcovr \
+  gcc g++ make
+  clang clangd clang-tools-14
+  lld lldb
+  gdb
+  cmake ninja-build pkg-config
+  ccache lcov gcovr
   # --- binary analysis / debugging ---
-  strace ltrace valgrind binutils \
+  strace ltrace valgrind binutils
   # --- assembly ---
-  nasm \
+  nasm
   # --- mingw-w64 cross toolchain (64-bit Windows) ---
   # The umbrella `mingw-w64` package plus both C and C++ frontends for x86_64.
-  mingw-w64 \
-  gcc-mingw-w64-x86-64 \
-  g++-mingw-w64-x86-64 \
-  binutils-mingw-w64-x86-64 \
+  mingw-w64
+  gcc-mingw-w64-x86-64
+  g++-mingw-w64-x86-64
+  binutils-mingw-w64-x86-64
   # --- documentation / graph output ---
-  doxygen graphviz \
+  doxygen graphviz
   # --- autotools, for source trees that ship configure.ac ---
-  autoconf automake libtool bison flex gettext gperf texinfo patch \
+  autoconf automake libtool bison flex gettext gperf texinfo patch
   # --- headers commonly needed by real projects ---
-  libssl-dev zlib1g-dev libsqlite3-dev libffi-dev \
+  libssl-dev zlib1g-dev libsqlite3-dev libffi-dev
   libncurses-dev libreadline-dev liblzma-dev libbz2-dev
+)
+
+apt-get install -y --no-install-recommends "${packages[@]}"
 rm -rf /var/lib/apt/lists/*
 apt-get clean
 

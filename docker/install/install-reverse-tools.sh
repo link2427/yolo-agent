@@ -49,17 +49,23 @@ curl -fsSL --retry 3 -o /tmp/radare2.deb \
 verify "$RADARE2_SHA256" /tmp/radare2.deb
 
 apt-get update
-apt-get install -y --no-install-recommends \
+
+# Package list is an array, not a backslash continuation: a `#` comment inside a
+# continuation ends the command and makes apt try to execute the next line.
+packages=(
   # native analysis / debugging
-  gdb binutils binutils-multiarch elfutils strace ltrace \
+  gdb binutils binutils-multiarch elfutils strace ltrace
   # file carving and signature scanning
-  binwalk foremost yara \
+  binwalk foremost yara
   # hex inspection
-  xxd hexedit bsdextrautils \
+  xxd hexedit bsdextrautils
   # archive handling used by every one of these tools
-  zip unzip xz-utils p7zip-full cabextract \
+  zip unzip xz-utils p7zip-full cabextract
   # radare2 itself, from the pinned release .deb
   /tmp/radare2.deb
+)
+
+apt-get install -y --no-install-recommends "${packages[@]}"
 rm -f /tmp/radare2.deb
 rm -rf /var/lib/apt/lists/*
 apt-get clean
