@@ -9,6 +9,11 @@
   "terminal.integrated.defaultProfile.linux": "bash",
   "python.languageServer": "jedi",
   "python.analysis.autoImportCompletions": false,
+  "python.defaultInterpreterPath": "/opt/pyenv/bin/python3",
   "git.autofetch": true,
-  "diffEditor.ignoreTrimWhitespace": false
+  "diffEditor.ignoreTrimWhitespace": false,
+  "clangd.path": "/usr/bin/clangd",
+  "cmake.generator": "Ninja",
+  "cmake.configureOnOpen": false,
+  "C_Cpp.intelliSenseEngine": "disabled"
 }
