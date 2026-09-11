@@ -25,9 +25,19 @@ mkdir -p /usr/local/bin /usr/local/lib
 cp /opt/node/bin/node /usr/local/bin/node
 cp -a /opt/node/lib/node_modules /usr/local/lib/node_modules
 
-ln -sf /usr/local/lib/node_modules/npm/bin/npm-cli.js       /usr/local/bin/npm
-ln -sf /usr/local/lib/node_modules/npm/bin/npx-cli.js       /usr/local/bin/npx
-ln -sf /usr/local/lib/node_modules/corepack/dist/corepack.js /usr/local/bin/corepack
+# Symlink the CLI entry points by their RESOLVED paths. The official image ships
+# /usr/local/bin/corepack as a relative symlink (`../lib/node_modules/...`), and
+# a relative target is interpreted against the symlink's own directory -- so
+# pointing at it by name from a different directory breaks it with
+# "Cannot find module '../lib/cli.js'". readlink -f collapses the chain.
+for cli in npm npx corepack; do
+  target="$(readlink -f "/opt/node/bin/$cli")"
+  case "$target" in
+    /opt/node/*) target="/usr/local/lib/node_modules/${target#/opt/node/lib/node_modules/}" ;;
+  esac
+  [[ -f "$target" ]] || { echo "ERROR: cannot resolve $cli entry point" >&2; exit 1; }
+  ln -sf "$target" "/usr/local/bin/$cli"
+done
 
 node --version
 npm --version

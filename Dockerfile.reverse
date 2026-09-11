@@ -112,10 +112,13 @@ ENV LANG=C.UTF-8 \
 # relying on the stage chain.
 COPY --from=node /usr/local/bin/node /usr/local/bin/node
 COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
-COPY --from=node /usr/local/bin/npm /usr/local/bin/npm
-COPY --from=node /usr/local/bin/npx /usr/local/bin/npx
-COPY --from=node /usr/local/bin/corepack /usr/local/bin/corepack
-RUN node --version && npm --version && corepack --version
+# Symlinks are recreated rather than copied: COPY dereferences a symlink source,
+# which would leave /usr/local/bin/corepack holding cli.js bytes under the wrong
+# name.
+RUN ln -sf /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+ && ln -sf /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
+ && ln -sf /usr/local/lib/node_modules/corepack/dist/corepack.js /usr/local/bin/corepack \
+ && node --version && npm --version && corepack --version
 
 COPY --from=deepseek-harness /opt/opencode /opt/opencode
 COPY --from=deepseek-harness /opt/pi /opt/pi
