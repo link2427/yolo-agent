@@ -12,7 +12,7 @@ dsh_pid=$!
 socat TCP-LISTEN:"$relay_port",fork,reuseaddr TCP:127.0.0.1:"$internal_port" &
 relay_pid=$!
 
-# shellcheck disable=SC2317 # called indirectly by the traps below
+# shellcheck disable=SC2317,SC2329 # invoked indirectly by the traps below
 cleanup() {
   kill "$dsh_pid" "$relay_pid" 2>/dev/null || true
   wait "$dsh_pid" "$relay_pid" 2>/dev/null || true

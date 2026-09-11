@@ -3,7 +3,10 @@
 .env.*
 !.env.example
 !*.env.example
-config/yolo.env
+# Real runtime env files (base.env, cpp.env, reverse.env) are never committed;
+# only the *.example templates are.
+config/*.env
+config/.env
 *.key
 *.pem
 *credentials*

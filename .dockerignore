@@ -1,8 +1,16 @@
+# Build context allowlist: only what the Dockerfiles actually COPY.
 *
 !Dockerfile
+!Dockerfile.cpp
+!Dockerfile.reverse
 !docker/
 !docker/**
 !config/
-!config/seccomp-yolo.json
+!config/seccomp-base.json
+!config/seccomp-toolchain.json
 !docs/
 !docs/**
+!README.md
+!SECURITY.md
+!PINS.md
+!VERSION

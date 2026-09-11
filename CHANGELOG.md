@@ -1,5 +1,80 @@
 # Changelog
 
+## 2.0.0 - 2026-09-11
+
+The modular overhaul. The repository now builds **three** independent images
+instead of one monolith, and the agent surface is deliberately much smaller.
+
+### Added
+
+- `yolo-agent-cpp` (`Dockerfile.cpp`) — an offline C/C++ toolchain: gcc, g++,
+  clang 14 (+clangd), lld, lldb, gdb, make, ninja, cmake, pkg-config, ccache,
+  nasm, strace, ltrace, valgrind, lcov, gcovr, doxygen, graphviz and autotools,
+  plus the **mingw-w64 cross toolchain** that produces 64-bit Windows PE
+  binaries (`x86_64-w64-mingw32-gcc/g++`). Includes two CMake toolchain files,
+  a `cpp-build.sh` helper, and a smoke test that compiles and asserts on both an
+  ELF64 and a PE32+ binary.
+- `yolo-agent-reverse-engineering` (`Dockerfile.reverse`) — pycdc/pycdas (built
+  from source), pyinstxtractor-ng, decompyle3, pydumpck, xdis, jadx 1.5.6,
+  Ghidra 12.1.3 headless on Temurin JDK 21, radare2 6.2.2, gdb, angr, capstone,
+  unicorn, lief, pefile, pyelftools, binwalk, foremost, and yara. Its smoke test
+  builds a real PyInstaller archive, extracts it, and disassembles the result.
+- `config/seccomp-toolchain.json` — a second seccomp profile for the toolchain
+  images. It is identical to the base profile except that `ptrace`,
+  `process_vm_readv`, and `process_vm_writev` are allowed, which is what makes
+  `gdb` and gcc LTO work. Every privileged syscall stays denied.
+- Per-image compose files (`compose.yaml`, `compose.cpp.yaml`,
+  `compose.reverse.yaml`) and per-flavor env templates, home volumes, and
+  launcher targets.
+- One offline bundle per image, with `scripts/package-offline.sh` generalized
+  from a single image to `name:tag` specs.
+
+### Changed
+
+- **Build graph** — `docker buildx bake` now builds and smoke-tests all three
+  images; `docker buildx bake {base,cpp,reverse}` builds one.
+- **Base image** — moved from `node:22-bookworm-slim` to `debian:bookworm-slim`
+  with the Node runtime copied in from the official image. This gives a clean
+  Debian userland whose system interpreter is exactly Python 3.11, which is the
+  single interpreter version the project now targets.
+- **Python** — collapsed into **one** environment per image at `/opt/pyenv`
+  (Python 3.11, first on `PATH`, `VIRTUAL_ENV` preset). The reverse image
+  extends that same venv instead of creating a second one.
+- **Pins refreshed** — opencode 1.18.30, pi 0.85.1, DeepSeek Harness
+  0.1.5-rc.1 (with a regenerated 561-package pnpm lock), code-server 4.137.0.
+- **Node base digest** re-pinned; VS Code extension pack grown from 15 to 19 to
+  include the C/C++ set in every image.
+- Documentation restructured for three containers (13 documents under `docs/`).
+
+### Removed
+
+- **OpenHands** entirely — it never worked reliably in this container. Gone from
+  the Dockerfile, compose, launchers, docs, and the offline bundles.
+- **prime-agent** and its Python kernel runtime (the `~/.prime` venv, `uv`, and
+  the second interpreter it dragged in).
+- **goose** and **aider** — their config surface and their venvs.
+- **The skills library** (`install-skills.sh`, `make-skill-farm.sh`,
+  `skill-use.sh`, `CURATED-SKILLS.txt`, and the 147 MB `/opt/skills` tree). This
+  was the single largest weight cut and is what makes one complete shared Python
+  environment affordable. Agents author skills in `/workspace` instead.
+- **The DeepSeek Harness wrapper script** — 0.1.5-rc.1 no longer imports Node
+  internals, and the `dsh --version` check in the installer is what proves the
+  shim runs.
+- `config/yolo.env.example` and `config/seccomp-yolo.json`, replaced by
+  per-flavor templates and two named seccomp profiles.
+
+### Known limitations
+
+- The C++ image has **no Wine**, so Windows binaries can be cross-compiled but
+  not executed inside the container. CMake test execution is guarded with
+  `if(NOT CMAKE_CROSSCOMPILING)`.
+- Debian 12 ships clang/lld/lldb **14**; a newer LLVM would have to be vendored.
+- `uncompyle6` is deliberately absent because it requires `xdis<6.2.0` while
+  `pyinstxtractor-ng` requires `xdis==6.3.0` exactly. pycdc covers arbitrary
+  bytecode versions as the fallback.
+- `numpy` (2.4.6) and `angr` (9.2.213) are pinned below their latest releases,
+  which now require Python ≥ 3.12.
+
 ## 1.2.2 - 2026-09-04
 
 - Qwen3.8-27B reasoning effort matches the model card: `xhigh` (default),

@@ -1,130 +1,176 @@
 # yolo-agent
 
-A persistent Linux/amd64 environment for autonomous coding agents, recovered
-from the original Container Forge workspace and reorganized into a reproducible
-Docker build.
+Three containers for running unrestricted autonomous coding agents on an
+**air-gapped** host. One folder is mounted; everything else is baked into the
+image. Build on a networked machine, export, `docker load`, done — the runtime
+never reaches the network again.
 
-It includes opencode, goose, pi, aider, Prime Agent, DeepSeek Harness, and
-OpenHands, plus code-server, a persistent ttyd/tmux terminal, and the pinned
-skills library. Runtime credentials are supplied only through an ignored env
-file.
+| Image | For | Adds over the base |
+|---|---|---|
+| `yolo-agent` | general development | opencode, pi, DeepSeek Harness, code-server, ttyd/tmux, Python 3.11 with ~45 packages |
+| `yolo-agent-cpp` | C/C++ projects | cmake, ninja, clang, gcc/g++, gdb, ccache + **mingw-w64 cross compiler** producing 64-bit Windows PE binaries |
+| `yolo-agent-reverse-engineering` | decompilation | pycdc/pycdas, pyinstxtractor-ng, decompyle3, pydumpck, jadx, Ghidra headless, radare2, angr, capstone, unicorn |
 
-## The image
+Every image is self-contained: loading one archive is enough to run that
+container offline. There is no separately published base image to chase.
 
-`yolo-agent` is a single always-on browser runtime. It ships every agent
-harness, the browser IDE (code-server), the terminal (ttyd/tmux), OpenHands
-(`openhands web` on port 3000), and DeepSeek Harness. There is no separate headless
-variant: every web surface is exposed by default, because this build targets
-an air-gapped internal network.
+## The one-mount model
 
-## Build and test
+The container gets exactly **one** host folder, mounted at `/workspace`. Agent
+state, secrets, caches, and terminals live in a named Docker volume at
+`/home/agent` that is separate from your data. Nothing else from the host is
+visible — no Docker socket, no home directory, no other drives.
+
+```
+host                          container
+──────────────────────────    ─────────────────────────────────
+/path/to/your/project    →    /workspace        (the only mount)
+  (named volume)         →    /home/agent       (agent state, secrets, caches)
+                              /opt/...          (read-only image content)
+```
+
+## Quick start
 
 ```bash
-# Build the image and run its smoke suite.
+# 1. Configure the model endpoint (see config/*.env.example).
+cp config/base.env.example config/base.env
+$EDITOR config/base.env
+
+# 2. Build and smoke-test all three images.
 docker buildx bake
 
-# Build the image without running the smoke suite.
+# 3. Build just the shippable images.
 docker buildx bake images
-
-# Build directly.
-docker build --target runtime -t yolo-agent:1.2.2 .
 ```
 
-Each installer is isolated under `docker/install/`, so changes to the web IDE
-or skills do not invalidate the agent layers. Published tags are produced by
-GitHub Actions when a `v*` tag is pushed.
-
-## Offline release bundles
-
-Each release attaches one ready-to-burn ZIP:
-
-- `yolo-agent-<version>-offline.zip`
-
-The ZIP contains a Docker-loadable image archive, Linux and Windows launchers,
-Compose configuration, the seccomp policy, the public-safe environment
-template, documentation, exact offline loading instructions, the source
-commit, image metadata, and SHA-256 checksums. The ZIP itself has a separate
-`.zip.sha256` release asset.
-
-The ZIP uses maximum compression to stay within GitHub's asset limit. If a
-bundle still exceeds 2 GiB, the release contains numbered ZIP parts and a
-`REASSEMBLE.txt` file; download every part and follow those instructions.
-After downloading or reassembling, unzip it and follow `LOAD-OFFLINE.txt`; no
-registry or internet connection is required after `docker load`.
-
-## Run
-
-Create the local configuration first (Compose can start without it, but agents
-will not receive your model or Git settings):
+Run it — pick a flavor with `-f`:
 
 ```bash
-cp config/yolo.env.example config/yolo.env
-```
-
-Then use Compose:
-
-```bash
-# Disposable interactive container; home and project files persist.
+# base
 docker compose run --rm agent
+docker compose up -d                       # code-server :8080, ttyd :7681, dsh :3080
 
-# Persistent browser stack (code-server, ttyd, OpenHands, DeepSeek Harness).
-docker compose up -d
+# C/C++
+docker compose -f compose.cpp.yaml run --rm agent
+
+# reverse engineering
+docker compose -f compose.reverse.yaml run --rm agent
 ```
 
-The browser ports are bound to `0.0.0.0` by default (internal network use):
+The same, without compose:
 
-- code-server: `http://<host>:8080`
-- ttyd/tmux: `http://<host>:7681`
-- OpenHands: `http://<host>:3000`
-- DeepSeek Harness: `http://<host>:3080`
+```bash
+./bin/run.sh                     # base, project dir = $PWD
+CONTAINER=cpp ./bin/run.sh       # C/C++
+CONTAINER=reverse ./bin/run.sh   # reverse engineering
+./bin/run-server.sh              # persistent IDE + terminal
+```
 
-Set `YOLO_BIND_ADDRESS=127.0.0.1` if you ever want host-loopback binding. The
-legacy cross-platform launchers remain in `bin/`.
+Windows hosts have equivalent launchers: `bin\run.ps1` and
+`bin\run-server.ps1`, with `-Container base|cpp|reverse`.
 
-## Persistence
+## The agents
 
-`yolo-agent-home-v1` retains agent sessions, tools installed into the user
-home, SSH configuration, and terminal state. The selected project directory
-is bind-mounted at `/workspace`. Closing a browser tab does not end the tmux
-session; deleting the named volume does delete the persisted agent home.
-DeepSeek Harness stores its profiles and sessions under `~/.dsh` in that same
-volume, while project files remain in `/workspace`. OpenHands keeps its
-conversations and settings under `~/.openhands`.
+Three, and only three. All are pre-configured for YOLO mode — **no permission
+prompts, ever** — against your local OpenAI-compatible endpoint.
+
+| Agent | Command | Notes |
+|---|---|---|
+| opencode | `opencode` | `"permission": "allow"`; provider/model written to `~/.config/opencode/opencode.json` |
+| pi | `pi` | `defaultProjectTrust: "always"`; telemetry off; `~/.pi/agent/` |
+| DeepSeek Harness | `dsh` / `dsh web` | local endpoint only; the DeepSeek cloud provider is deliberately left empty |
+
+Set `VLLM_BASE_URL` and `VLLM_MODEL` in the env file and the configs are written
+automatically on first launch. See [docs/09-MODEL-ENDPOINT.md](docs/09-MODEL-ENDPOINT.md).
+
+## One Python environment
+
+Every image ships exactly **one** Python 3.11 environment at `/opt/pyenv`, first
+on `PATH`, with `VIRTUAL_ENV` already set. There is no second interpreter, no
+per-agent venv, and no conda.
+
+```bash
+python3 --version          # 3.11.x
+pip install <pkg>          # allowed, but see the air-gap warning below
+```
+
+`yolo-agent-reverse-engineering` extends that *same* environment with the
+decompilation packages instead of creating another one.
+
+> **Air gap:** the host has no internet, so `pip install` cannot fetch anything
+> new at runtime. The environment is complete as shipped; note any package you
+> need *before* building the image, and add it to `docker/requirements-*.txt`.
+
+## Air-gapped operation
+
+Everything — agent binaries, code-server extensions, Python packages, the C++
+toolchain, Ghidra — is downloaded at **build** time and baked in. The runtime
+container performs no downloads.
+
+Tagged releases attach one offline ZIP per image:
+
+```
+yolo-agent-base-2.0.0-offline.zip
+yolo-agent-cpp-2.0.0-offline.zip
+yolo-agent-reverse-engineering-2.0.0-offline.zip
+```
+
+Each contains a Docker-loadable archive, launchers, the compose file, the
+seccomp profile, an env template, documentation, SHA-256 checksums, and
+`LOAD-OFFLINE.txt` with the exact load commands. Verify, `docker load`, run. If
+a bundle exceeds GitHub's 2 GiB asset limit it is split into numbered parts with
+checksums and a `REASSEMBLE.txt`.
+
+## What changed in 2.0
+
+- **Modularized** into three independently buildable images sharing
+  `docker/install/` and `docker/rootfs/` fragments.
+- **Removed** OpenHands (never worked reliably here), prime-agent, goose, and
+  aider — leaving opencode, pi, and DeepSeek Harness.
+- **Collapsed the Python surface** into one 3.11 environment per image.
+- **Dropped the 147 MB skills library**; agents author skills in `/workspace`
+  instead.
+- **Added** the C/C++ and reverse-engineering containers.
+- **Refreshed every pin** (opencode 1.18.30, pi 0.85.1, dsh 0.1.5-rc.1,
+  code-server 4.137.0); see [PINS.md](PINS.md).
 
 ## Repository layout
 
 ```text
-Dockerfile                 composable image stages (single runtime)
-docker/install/            pinned agent, IDE, OpenHands, and skill installers
-docker/rootfs/             files copied into the runtime image
-docker/tests/              image smoke tests
+Dockerfile                 yolo-agent            (base)
+Dockerfile.cpp             yolo-agent-cpp
+Dockerfile.reverse         yolo-agent-reverse-engineering
+docker-bake.hcl            build matrix for all three
+compose.yaml               base container
+compose.cpp.yaml           C/C++ container
+compose.reverse.yaml       reverse-engineering container
+config/                    seccomp profiles + env templates
+docker/install/            pinned installers, shared by all three images
+docker/requirements-*.txt  the Python 3.11 package sets
+docker/rootfs/             files copied into every image
+docker/tests/              per-image smoke suites (the build gate)
 bin/                       Linux and Windows host launchers
-config/                    seccomp policy and public-safe env example
-docs/                      current operator documentation
+docs/                      operator documentation
+scripts/                   offline bundle packaging
 history/                   recovered v5/v6 provenance (no large archives)
-compose.yaml               hardened local runtime
-docker-bake.hcl            repeatable build matrix
-.github/workflows/         CI, GHCR publishing, and offline release bundles
 ```
 
-## Recovered versions
+## Documentation
 
-- `archive-yolo-dev-6.0-recovered` preserves the exact recovered source as
-  imported history, outside the new semantic-version sequence.
-- `history/v5.0/` is a partial snapshot because the 5.0 Docker build context
-  did not survive. Its original image checksum and build log are retained.
-- `v1.0.0` begins the reorganized, source-first release line.
+Start at [docs/00-INDEX.md](docs/00-INDEX.md). The most useful entries:
 
-Large `.docker.tar` and skill-library `.zip` exports are intentionally not
-committed. See `history/README.md` and `CHANGELOG.md`.
+- [docs/02-QUICKSTART.md](docs/02-QUICKSTART.md) — build, load, and run
+- [docs/04-PYTHON.md](docs/04-PYTHON.md) — the single Python environment
+- [docs/05-CPP.md](docs/05-CPP.md) — Windows cross-compilation
+- [docs/06-REVERSE-ENGINEERING.md](docs/06-REVERSE-ENGINEERING.md) — decompiling `.exe` files
+- [docs/10-SECURITY.md](docs/10-SECURITY.md) — containment model and its limits
 
 ## Security
 
-The launch configuration uses uid 10001, a read-only root filesystem, no Linux
-capabilities, `no-new-privileges`, resource limits, and a seccomp deny list. It
-does not mount the Docker socket. Agents are unrestricted within the writable
-home and project mounts, so use a dedicated GitHub identity or narrowly scoped
-token for repositories where destructive changes matter.
-
-Read `SECURITY.md` and `PINS.md` before exposing browser endpoints or changing
-the build pins.
+Read [SECURITY.md](SECURITY.md) and [PINS.md](PINS.md) before exposing browser
+endpoints or changing build pins. In short: uid 10001, read-only root
+filesystem, all capabilities dropped, `no-new-privileges`, a seccomp denylist,
+and no Docker socket. The agents are *unrestricted inside the container* by
+design — that is the point of YOLO mode — so the workspace mount is the real
+security boundary. Point it at a scratch directory, not at anything you care
+about.

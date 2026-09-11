@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 #
-# Point opencode, pi, goose and aider at an OpenAI-compatible local endpoint
-# (vLLM by default; LM Studio alternative), always in YOLO mode — no
-# permission prompts ever — and refresh the skills farm. Idempotent.
+# Point opencode, pi, and DeepSeek Harness at an OpenAI-compatible local
+# endpoint (vLLM by default; LM Studio alternative), always in YOLO mode — no
+# permission prompts ever. Idempotent, and safe to re-run on a reused home
+# volume.
 #
 # Required env:
 #   VLLM_BASE_URL=http://<host>:<port>/v1     (vLLM default; or LM_STUDIO_BASE_URL=...)
@@ -10,20 +11,17 @@
 # Optional env:
 #   VLLM_API_KEY=<key>                        (most local servers need none)
 #   VLLM_REASONING_EFFORT=xhigh               (off|low|medium|xhigh; Qwen3.8)
+#   VLLM_CONTEXT=<tokens>                     (must match vLLM --max-model-len)
 #   LM_STUDIO_MODEL=...                       (only with LM_STUDIO_BASE_URL)
 #
 # YOLO settings baked here (never ask permission):
-#   opencode   "permission": "allow"          (auto-approve every tool)
-#   pi         no permission system; defaultProjectTrust "always" silences trust prompts
-#   goose      GOOSE_MODE: auto                 (fully autonomous)
-#   aider      yes-always: true                 (always say yes)
-#   prime-agent  no permission-prompt system (pi lineage); autonomous headless
-#                mode via --autonomous; telemetry disabled
-#   (all of the above are also the baked image defaults — see /opt/yolo)
+#   opencode  "permission": "allow"        auto-approve every tool
+#   pi        no permission system; defaultProjectTrust "always" silences the
+#             trust prompt
+#   dsh       harness runs non-interactively against the local endpoint
 #
 # Secrets policy: the only secret is VLLM_API_KEY. opencode reads it from the
-# environment ({env:VLLM_API_KEY}); pi from models.json (mode 600); goose and
-# aider from OPENAI_API_KEY env (goose ignores keys in its config file).
+# environment ({env:VLLM_API_KEY}); pi reads it from models.json (mode 600).
 #
 set -euo pipefail
 umask 077
@@ -59,17 +57,6 @@ case "$VLLM_REASONING_EFFORT" in
   *) echo "WARN: VLLM_REASONING_EFFORT='$VLLM_REASONING_EFFORT' is not off|low|medium|xhigh; using xhigh" >&2
      VLLM_REASONING_EFFORT="xhigh" ;;
 esac
-if [[ "$VLLM_REASONING_EFFORT" == "off" ]]; then
-  ENABLE_THINKING=false
-else
-  ENABLE_THINKING=true
-fi
-
-OPENAI_HOST="$BASE_URL"
-case "$OPENAI_HOST" in
-  */v1/chat/completions) OPENAI_HOST="${OPENAI_HOST%/v1/chat/completions}" ;;
-  */v1)                  OPENAI_HOST="${OPENAI_HOST%/v1}" ;;
-esac
 
 # --- context window override -------------------------------------------------
 # If VLLM_CONTEXT is set (e.g. 262144 for a 256k model), every agent config
@@ -81,6 +68,7 @@ case "$VLLM_CONTEXT" in
   ""|[0-9]*) ;;
   *) echo "WARN: VLLM_CONTEXT='$VLLM_CONTEXT' is not numeric; ignoring" >&2; VLLM_CONTEXT="" ;;
 esac
+
 MODEL_ENTRY_JSON="{ \"id\": \"$MODEL\", \"name\": \"$MODEL\", \"reasoning\": true, \"thinkingLevelMap\": { \"off\": \"off\", \"minimal\": null, \"low\": \"low\", \"medium\": \"medium\", \"high\": \"xhigh\", \"xhigh\": \"xhigh\", \"max\": null }"
 LIMIT_JSON=""
 if [[ -n "$VLLM_CONTEXT" ]]; then
@@ -99,8 +87,8 @@ OC_MODEL_JSON="${LIMIT_JSON}
             \"xhigh\": { \"reasoningEffort\": \"xhigh\" }
           }"
 
-mkdir -p "$HOME/.config/opencode" "$HOME/.pi/agent" "$HOME/.config/goose" "$HOME/.prime/agent"
-chmod 700 "$HOME/.config/opencode" "$HOME/.pi/agent" "$HOME/.config/goose" "$HOME/.prime/agent"
+mkdir -p "$HOME/.config/opencode" "$HOME/.pi/agent" "$HOME/.dsh"
+chmod 700 "$HOME/.config/opencode" "$HOME/.pi/agent" "$HOME/.dsh"
 
 # --- opencode: YOLO + endpoint ----------------------------------------------
 cat > "$HOME/.config/opencode/opencode.json" <<EOF
@@ -132,7 +120,6 @@ EOF
 
 # --- pi: never trust-prompt, telemetry off, endpoint -------------------------
 PI_THINKING="$VLLM_REASONING_EFFORT"
-[[ "$PI_THINKING" == "off" ]] || true
 cat > "$HOME/.pi/agent/settings.json" <<EOF
 {
   "defaultProjectTrust": "always",
@@ -163,138 +150,20 @@ cat > "$HOME/.pi/agent/models.json" <<EOF
 }
 EOF
 
-# --- prime-agent: endpoint + telemetry off (pi-lineage models.json schema) ---
-cat > "$HOME/.prime/agent/models.json" <<EOF
-{
-  "providers": {
-    "vllm": {
-      "baseUrl": "$BASE_URL",
-      "api": "openai-completions",
-      "apiKey": "$API_KEY",
-      "authHeader": true,
-      "compat": {
-        "supportsDeveloperRole": false,
-        "supportsReasoningEffort": true,
-        "thinkingFormat": "qwen-chat-template"
-      },
-      "models": [
-        $MODEL_ENTRY_JSON
-      ]
-    }
-  }
-}
-EOF
-cat > "$HOME/.prime/agent/settings.json" <<EOF
-{
-  "telemetry": {
-    "enabled": false
-  },
-  "defaultProvider": "vllm",
-  "defaultModel": "$MODEL",
-  "defaultThinkingLevel": "$PI_THINKING"
-}
-EOF
+# --- DeepSeek Harness: same endpoint, local only -----------------------------
+# Do NOT set DEEPSEEK_API_KEY: that would put DeepSeek cloud models back in the
+# picker, and there is no internet on the host anyway.
+/opt/yolo/configure-dsh.sh
 
-# --- goose: local vLLM only (no cloud catalog) -------------------------------
-GOOSE_CONTEXT="${VLLM_CONTEXT:-262144}"
-mkdir -p "$HOME/.config/goose/custom_providers"
-cat > "$HOME/.config/goose/custom_providers/vllm.json" <<EOF
-{
-  "name": "vllm",
-  "engine": "openai",
-  "display_name": "vLLM (local)",
-  "description": "Local vLLM endpoint",
-  "api_key_env": "VLLM_API_KEY",
-  "base_url": "$BASE_URL/chat/completions",
-  "models": [
-    { "name": "$MODEL", "context_limit": $GOOSE_CONTEXT }
-  ],
-  "supports_streaming": true,
-  "requires_auth": false
-}
-EOF
-cat > "$HOME/.config/goose/config.yaml" <<EOF
-GOOSE_MODE: auto
-GOOSE_PROVIDER: vllm
-GOOSE_MODEL: $MODEL
-OPENAI_HOST: $OPENAI_HOST
-OPENAI_REASONING_EFFORT: $VLLM_REASONING_EFFORT
-EOF
+chmod 600 "$HOME/.pi/agent/models.json" "$HOME/.pi/agent/settings.json" "$HOME/.dsh/settings.yaml"
 
-# --- aider: always yes + endpoint (key from OPENAI_API_KEY env) --------------
-# Context window override via a model metadata file (aider's catalog also
-# defaults Qwen-class ids to 128k).
-AIDER_METADATA_LINE=""
-if [[ -n "$VLLM_CONTEXT" ]]; then
-  AIDER_METADATA_LINE="model-metadata-file: $HOME/.aider-model-metadata.json"
-  cat > "$HOME/.aider-model-metadata.json" <<EOF
-{
-  "$MODEL": {
-    "context_window": $VLLM_CONTEXT,
-    "max_tokens": 32768
-  }
-}
-EOF
-fi
-if [[ "$ENABLE_THINKING" == "true" ]]; then
-  cat > "$HOME/.aider.conf.yml" <<EOF
-yes-always: true
-model: $MODEL
-openai-api-base: $BASE_URL
-openai-api-key: $API_KEY
-no-show-model-warnings: true
-reasoning-effort: $VLLM_REASONING_EFFORT
-extra-params:
-  extra_body:
-    chat_template_kwargs:
-      enable_thinking: true
-      preserve_thinking: true
-    reasoning_effort: $VLLM_REASONING_EFFORT
-$AIDER_METADATA_LINE
-EOF
-else
-  cat > "$HOME/.aider.conf.yml" <<EOF
-yes-always: true
-model: $MODEL
-openai-api-base: $BASE_URL
-openai-api-key: $API_KEY
-no-show-model-warnings: true
-extra-params:
-  extra_body:
-    chat_template_kwargs:
-      enable_thinking: false
-$AIDER_METADATA_LINE
-EOF
-fi
-
-chmod 600 "$HOME/.aider.conf.yml" "$HOME/.config/goose/config.yaml" "$HOME/.prime/agent/models.json" "$HOME/.prime/agent/settings.json" \
-  "$HOME/.pi/agent/models.json" "$HOME/.pi/agent/settings.json"
-chmod 600 "$HOME/.config/goose/custom_providers/vllm.json"
-[[ -n "$VLLM_CONTEXT" ]] && chmod 600 "$HOME/.aider-model-metadata.json"
-
-if [[ -n "${VLLM_BASE_URL:-}" && -n "${VLLM_MODEL:-$MODEL}" ]]; then
-  export VLLM_BASE_URL="$BASE_URL" VLLM_MODEL="$MODEL" VLLM_API_KEY="$API_KEY" \
-    VLLM_REASONING_EFFORT="$VLLM_REASONING_EFFORT" VLLM_CONTEXT="${VLLM_CONTEXT:-}"
-  [[ -x /opt/yolo/configure-openhands.sh ]] && /opt/yolo/configure-openhands.sh
-  [[ -x /opt/yolo/configure-dsh.sh ]] && /opt/yolo/configure-dsh.sh
-fi
-
-# --- skills farm refresh (idempotent; also fixes reused home volumes) --------
-/opt/yolo/make-skill-farm.sh
-
-echo "Configured all agents for $BASE_URL (model: $MODEL) — YOLO mode, no permission prompts"
+echo "Configured agents for $BASE_URL (model: $MODEL) — YOLO mode, no permission prompts"
 echo "  opencode -> ~/.config/opencode/opencode.json   (run: opencode, then /models)"
 echo "  pi       -> ~/.pi/agent/{settings,models}.json (run: pi --model vllm/$MODEL)"
-echo "  goose    -> ~/.config/goose/config.yaml        (run: goose)"
-echo "  aider    -> ~/.aider.conf.yml                  (run: aider)"
-echo "  prime-agent -> ~/.prime/agent/{models,settings}.json (run: prime-agent)"
 echo "  dsh      -> ~/.dsh/settings.yaml               (run: dsh web)"
-echo "  skills   -> ~/.agents/skills ($(find "$HOME/.agents/skills" -maxdepth 1 -mindepth 1 | wc -l) skills)"
-echo "  reasoning -> $VLLM_REASONING_EFFORT (Qwen3.8: off|low|medium|xhigh; pi/prime-agent /effort)"
+echo "  python   -> /opt/pyenv ($(python3 --version 2>&1))"
+echo "  reasoning -> $VLLM_REASONING_EFFORT (Qwen3.8: off|low|medium|xhigh; pi /effort)"
 if [[ -n "$VLLM_CONTEXT" ]]; then
   echo "  context  -> $VLLM_CONTEXT tokens (must match vLLM --max-model-len)"
-  echo "  goose    -> uses the custom 'vllm' provider; if it doesn't auto-select,"
-  echo "             run: goose session start --provider vllm"
 fi
-echo "Note: if your endpoint requires auth, export OPENAI_API_KEY=... (goose/aider)"
-echo "and set VLLM_API_KEY in yolo.env (opencode/pi)."
+echo "Note: if your endpoint requires auth, set VLLM_API_KEY in the env file."

@@ -1,14 +1,33 @@
+# yolo-agent base image — hardened runtime, air-gapped LAN by default.
+#
+# This file defines ONE container. The other two images have their own compose
+# files so that a single container can be shipped, read, and audited alone:
+#
+#   compose.yaml           yolo-agent (this file)
+#   compose.cpp.yaml       yolo-agent-cpp
+#   compose.reverse.yaml   yolo-agent-reverse-engineering
+#
+# Because `docker compose -f compose.cpp.yaml up` still parses the other
+# services if you list them, each file is deliberately self-contained: it
+# carries its own anchor, its own volumes, and its own env file.
+#
+# ${...} values below are substituted by Compose on the HOST, so they come from
+# your shell or a .env file in this directory — NOT from config/base.env, which
+# is only passed into the container as an env_file:
+#
+#   YOLO_BIND_ADDRESS=127.0.0.1 docker compose up -d
+
 x-yolo-agent: &yolo-agent
-  image: ${YOLO_IMAGE:-yolo-agent:1.2.2}
+  image: ${YOLO_IMAGE:-yolo-agent:2.0.0}
   user: "10001:10001"
   read_only: true
   cap_drop:
     - ALL
   security_opt:
     - no-new-privileges:true
-    - seccomp=./config/seccomp-yolo.json
+    - seccomp=./config/seccomp-base.json
   env_file:
-    - path: ./config/yolo.env
+    - path: ./config/base.env
       required: false
   working_dir: /workspace
   volumes:
@@ -23,12 +42,9 @@ x-yolo-agent: &yolo-agent
   pids_limit: 2048
   stop_grace_period: 30s
 
-# The image is a single always-on browser runtime. Every web surface is
-# exposed on the internal network by default (this build is meant for an
-# air-gapped LAN with no external reach).
 services:
-  # Interactive shell only. `docker compose run --rm agent` enables this
-  # profile automatically; `docker compose up -d` does not start it.
+  # Interactive shell only. `docker compose run --rm agent` enables this profile
+  # automatically; `docker compose up -d` does not start it.
   agent:
     <<: *yolo-agent
     profiles: [cli]
@@ -36,6 +52,7 @@ services:
     tty: true
     command: /bin/bash -l
 
+  # Persistent browser stack: code-server (:8080) + ttyd/tmux terminal (:7681).
   server:
     <<: *yolo-agent
     restart: unless-stopped
@@ -43,15 +60,16 @@ services:
     ports:
       - ${YOLO_BIND_ADDRESS:-0.0.0.0}:${YOLO_CODE_PORT:-8080}:8080
       - ${YOLO_BIND_ADDRESS:-0.0.0.0}:${YOLO_TERMINAL_PORT:-7681}:7681
-      - ${YOLO_BIND_ADDRESS:-0.0.0.0}:${YOLO_OPENHANDS_PORT:-3000}:3000
 
+  # DeepSeek Harness web UI. Its own service because it is the one surface that
+  # benefits from being restarted independently of the IDE.
   deepseek:
     <<: *yolo-agent
     restart: unless-stopped
     command: /opt/yolo/deepseek-web-start.sh
     ports:
-      - ${YOLO_BIND_ADDRESS:-0.0.0.0}:${DSH_WEB_PORT:-3080}:3081
+      - ${YOLO_BIND_ADDRESS:-0.0.0.0}:${YOLO_DSH_PORT:-3080}:3081
 
 volumes:
   yolo-agent-home:
-    name: ${YOLO_HOME_VOLUME:-yolo-agent-home-v1}
+    name: ${YOLO_HOME_VOLUME:-yolo-agent-base-home-v1}

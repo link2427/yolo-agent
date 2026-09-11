@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Configure git for the agents to push to the air-gapped Gitea server.
-# Two modes, picked via yolo.env:
+# Two modes, picked via the env file (config/<flavor>.env):
 #
 #   token mode (default):  GITEA_HOST=server4:3000 GITEA_USER=agent GITEA_TOKEN=...
 #   ssh mode:              GITEA_HOST=server4:3000 GIT_SSH=1 [GITEA_SSH_PORT=2222]
@@ -27,6 +27,24 @@ GITEA_HOST="${GITEA_HOST#https://}"
 GIT_NAME="${GIT_NAME:-Agent}"
 GIT_EMAIL="${GIT_EMAIL:-agent@gitea.local}"
 GITEA_USER="${GITEA_USER:-agent}"
+
+# --- optional /etc/hosts entry -------------------------------------------------
+# GITEA_HOST_IP exists for the case where the Gitea host name does not resolve
+# inside the container (no internal DNS). /etc/hosts is root-owned and the
+# container runs as uid 10001, so this usually cannot be written at runtime;
+# fail soft and tell the operator exactly what to do instead.
+if [[ -n "${GITEA_HOST_IP:-}" ]]; then
+  host_only="${GITEA_HOST%%:*}"
+  if getent hosts "$host_only" >/dev/null 2>&1; then
+    echo "git: $host_only already resolves; ignoring GITEA_HOST_IP"
+  elif printf '%s %s\n' "$GITEA_HOST_IP" "$host_only" >> /etc/hosts 2>/dev/null; then
+    echo "git: mapped $host_only -> $GITEA_HOST_IP in /etc/hosts"
+  else
+    echo "git: could not write /etc/hosts (expected: it is root-owned)." >&2
+    echo "     Use the IP directly instead:  GITEA_HOST=${GITEA_HOST_IP}:${GITEA_HOST##*:}" >&2
+    echo "     or add at launch:             docker run --add-host $host_only:$GITEA_HOST_IP ..." >&2
+  fi
+fi
 
 git config --global user.name "$GIT_NAME"
 git config --global user.email "$GIT_EMAIL"
@@ -59,7 +77,7 @@ EOF
 else
   # --- token mode -----------------------------------------------------------
   [[ -n "${GITEA_TOKEN:-}" ]] || {
-    echo "ERROR: set GITEA_TOKEN=... in yolo.env (or GIT_SSH=1 for key auth)" >&2
+    echo "ERROR: set GITEA_TOKEN=... in the env file (or GIT_SSH=1 for key auth)" >&2
     exit 1
   }
   printf '%s\n' "http://$GITEA_USER:$GITEA_TOKEN@$GITEA_HOST" > "$HOME/.git-credentials"
