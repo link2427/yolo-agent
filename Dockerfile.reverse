@@ -73,12 +73,18 @@ RUN DSH_VERSION="${DSH_VERSION}" bash /tmp/install-deepseek-harness.sh \
 
 # --- Python 3.11: common set PLUS the reverse-engineering set, one venv -----
 FROM base AS pyenv-reverse
-COPY docker/requirements-common.txt docker/requirements-reverse.txt /tmp/
+COPY docker/requirements-common.txt docker/requirements-reverse.txt \
+     docker/requirements-reverse-nodeps.txt /tmp/
 COPY docker/install/install-python-env.sh /tmp/install-python-env.sh
-# Both files install with --only-binary=:all: -- every pin has a cp311 wheel.
+# All three passes use --only-binary=:all: (every pin has a cp311 wheel); the
+# last one adds --no-deps for pydumpck and uncompyle6, whose declared xdis range
+# contradicts pyinstxtractor-ng's exact xdis==6.3.0 pin. Their dependencies are
+# pinned in requirements-reverse.txt, so nothing is left unresolved.
 RUN bash /tmp/install-python-env.sh \
       /tmp/requirements-common.txt /tmp/requirements-reverse.txt \
- && rm -f /tmp/requirements-common.txt /tmp/requirements-reverse.txt /tmp/install-python-env.sh
+      /tmp/requirements-reverse-nodeps.txt \
+ && rm -f /tmp/requirements-common.txt /tmp/requirements-reverse.txt \
+          /tmp/requirements-reverse-nodeps.txt /tmp/install-python-env.sh
 
 FROM base AS web-ide
 # The agent user is created in the shared `base` layer (system-deps.sh).

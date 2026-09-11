@@ -69,10 +69,14 @@ requests, pydantic, pytest, ...        from requirements-common.txt
 + capstone, unicorn, lief, pefile, pyelftools
 ```
 
-angr is deliberately absent: its dependency closure needs `mulpyplexer`, which
-has no release usable on Python 3.11, and an sdist-only `arpy`. Every pin that
-remains installs from a wheel, so the build keeps `--only-binary=:all:` with no
-exceptions. Details are in [06-REVERSE-ENGINEERING.md](06-REVERSE-ENGINEERING.md)
+Two things need explanation. angr is deliberately absent: its dependency
+closure needs `mulpyplexer`, which has no release usable on Python 3.11 at all.
+And two packages in the reverse image (`pydumpck` and `uncompyle6`) are
+installed with `--no-deps`, because their declared `xdis` range contradicts
+`pyinstxtractor-ng`'s exact `xdis==6.3.0` pin — their dependencies are pinned
+explicitly instead. Every pin that remains installs from a wheel, so the build
+keeps `--only-binary=:all:` throughout. Details are in
+[06-REVERSE-ENGINEERING.md](06-REVERSE-ENGINEERING.md)
 
 ## Using it
 

@@ -17,12 +17,14 @@
 #     unsatisfiable alongside xdis==6.3.0. pip fails the whole install with
 #     ResolutionImpossible rather than silently downgrading, which is how this
 #     was caught. Do not add it back.
-#   * uncompyle6 is present, transitively via pydumpck (pydumpck declares
-#     `uncompyle6>=3.9.0`). Its own metadata also wants `xdis<6.2.0`, so pip
-#     installs it without re-checking; the reverse smoke suite runs its CLI at
-#     build time, which is what proves it actually works against xdis 6.3.0.
-#     Because it is transitive, treat it as best-effort: if a future pydumpck
-#     drops it, add an explicit pin here.
+#   * uncompyle6 carries the SAME ceiling as decompyle3 (it declares
+#     `xdis<6.3,>=6.1.0` in its wheel metadata), so it cannot be resolved
+#     alongside xdis==6.3.0 either. pip is strict about transitive constraints,
+#     so uncompyle6 and pydumpck are installed with --no-deps from
+#     requirements-reverse-nodeps.txt. Their dependencies are pinned above, so
+#     nothing is actually unpinned -- only the resolution edge is skipped, and
+#     the reverse smoke suite runs uncompyle6's CLI at build time, which is the
+#     real evidence that it works against xdis 6.3.0.
 #   * pycdc + pycdas (built from source in the reverse image) are the
 #     version-agnostic fallback and are always available.
 #
@@ -42,13 +44,25 @@ pyinstxtractor-ng==2026.7.3
 xdis==6.3.0
 
 # --- Python bytecode decompilers --------------------------------------------
-# pydumpck is the all-in-one orchestrator: it dispatches to whichever decompiler
-# fits the bytecode version, and handles .exe/.pyz/.pyc/.elf inputs.
-# It also pulls in PyInstaller and uncompyle6 as dependencies. Those are
-# transitive, not declared: the image smoke test relies on PyInstaller to build a
-# real archive, and runs uncompyle6 to verify it works. If pydumpck is ever
-# dropped, add explicit pins for both here.
-pydumpck==1.20.1
+# pydumpck is the all-in-one orchestrator (it dispatches to whichever decompiler
+# fits the bytecode version and handles .exe/.pyz/.pyc/.elf inputs), but it is
+# installed with --no-deps from requirements-reverse-nodeps.txt, because one of
+# its dependencies is unresolvable here:
+#
+#   pydumpck -> uncompyle6 -> xdis<6.3      (all of 3.9.0 ... 3.9.3)
+#   pyinstxtractor-ng      -> xdis==6.3.0   (exact)
+#
+# pip treats a transitive constraint as hard, so the two cannot be resolved
+# together. pydumpck's other dependencies are therefore pinned here directly, so
+# the environment is still complete and fully pinned -- only the resolution edge
+# from pydumpck to them is skipped.
+pyinstaller==6.22.2
+sgtpyutils==1.20.15
+tinyaes==1.1.2
+# uncompyle6's remaining dependency (click already comes from the common set).
+# 1.8.9 is the only release with a wheel and it satisfies uncompyle6's
+# <1.9.2,>=1.8.9 range.
+spark-parser==1.8.9
 
 # --- native binary inspection / emulation -----------------------------------
 # angr used to live here. It is deliberately absent -- see the note at the top

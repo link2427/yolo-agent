@@ -42,9 +42,25 @@ for f in "$@"; do
   # before the offline host ever sees it. Every pin in every requirements file
   # satisfies it; if a future pin cannot, that is a decision to make explicitly
   # rather than by loosening this flag.
-  "$VENV/bin/python" -m pip install --no-cache-dir --disable-pip-version-check \
-    --index-url "$PIP_INDEX" --only-binary=:all: \
-    -r "$f"
+  #
+  # A file named *-nodeps.txt is installed with --no-deps, for packages whose
+  # declared dependency range contradicts another pin in the same environment.
+  # Their dependencies are pinned in the main requirements file instead, so the
+  # environment stays complete; only the resolution edge is skipped. Keep such
+  # files tiny and documented -- see docker/requirements-reverse-nodeps.txt.
+  case "$(basename "$f")" in
+    *-nodeps.txt)
+      echo "   (installed with --no-deps; its dependencies are pinned elsewhere)"
+      "$VENV/bin/python" -m pip install --no-cache-dir --disable-pip-version-check \
+        --index-url "$PIP_INDEX" --only-binary=:all: --no-deps \
+        -r "$f"
+      ;;
+    *)
+      "$VENV/bin/python" -m pip install --no-cache-dir --disable-pip-version-check \
+        --index-url "$PIP_INDEX" --only-binary=:all: \
+        -r "$f"
+      ;;
+  esac
 done
 
 echo ">> python-env: $(find "$VENV/lib" -maxdepth 2 -name 'site-packages' | head -1)"

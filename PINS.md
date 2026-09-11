@@ -94,37 +94,28 @@ environment, so each is pinned to its last 3.11-compatible release:
 | numpy | 2.4.6 | 2.5.3 | 2.5 requires ≥ 3.12 |
 | xdis | 6.3.0 | 6.3.0 | held at 6.3.0 because `pyinstxtractor-ng` requires exactly this |
 
-### Deliberately not installed: uncompyle6
+### The pydumpck / uncompyle6 / xdis conflict
 
-`uncompyle6` and `decompyle3` both declare `xdis<6.2.0`, while
-`pyinstxtractor-ng` requires `xdis==6.3.0` exactly. Extraction is the
-non-negotiable capability (without it there is no `.pyc` to decompile at all),
-so the pin on `xdis` wins:
+`uncompyle6` and `decompyle3` both declare an upper bound on `xdis`
+(`<6.3` and `<6.2.0` respectively, per their wheel metadata), while
+`pyinstxtractor-ng` requires `xdis==6.3.0` exactly. **pip treats transitive
+constraints as hard**, so no combination of pins resolves:
 
-- **`decompyle3` is not installed** — `xdis<6.3` is genuinely unsatisfiable
-  against `xdis==6.3.0`, and pip fails the whole install with
-  `ResolutionImpossible` rather than silently downgrading.
-- **`uncompyle6` is installed transitively via `pydumpck`** (`pydumpck`
-  declares `uncompyle6>=3.9.0`). pip installs it without re-checking its
-  `xdis` constraint, so the reverse smoke suite runs its CLI at build time;
-  that is what proves it works rather than an assumption that it does. Being
-  transitive, it is best-effort — if a future `pydumpck` drops it, pin it here.
-- **`pycdc` + `pycdas`** (C++, built from source in the reverse image) remain
-  the version-agnostic fallback.
+- `decompyle3` is simply not installed — `xdis<6.3` cannot meet `xdis==6.3.0`.
+- `pydumpck` requires `uncompyle6`, so pydumpck cannot be resolved normally
+  either. Both are installed from
+  `docker/requirements-reverse-nodeps.txt` with `--no-deps`.
+- Their dependencies are pinned explicitly in `requirements-reverse.txt`
+  (`pyinstaller`, `sgtpyutils`, `tinyaes`, `spark-parser`, and `click` from the
+  common set), so nothing in the environment is actually unpinned — only the
+  resolution edge from pydumpck/uncompyle6 to its dependencies is skipped.
+- `uncompyle6` running against `xdis 6.3.0` is unverified by its metadata. The
+  reverse smoke suite runs its CLI during the build, and that execution is the
+  only real evidence it works.
 
-### Removed: angr
-
-angr is **not** installed. Its 22-package dependency closure cannot be
-satisfied on Python 3.11 at all:
-
-- `mulpyplexer`, a direct angr dependency, publishes no wheel and no release
-  compatible with 3.11 (pip reports `from versions: none`).
-- `cle` (also angr) pins `arpy==1.1.1`, which is sdist-only.
-
-Carrying a source-built tail into an air-gapped image is a worse trade than
-losing symbolic execution, so angr was dropped. Nothing else in the image
-depends on it, and every remaining pin installs from a wheel with no
-exceptions. Re-adding it would require a separate image on Python 3.12.
+Extraction is the capability the image exists for, so `xdis` wins. The
+alternative — dropping `pyinstxtractor-ng` to satisfy the decompilers — would
+remove the ability to unpack a PyInstaller `.exe` at all.
 
 ## Reverse-engineering toolchain
 

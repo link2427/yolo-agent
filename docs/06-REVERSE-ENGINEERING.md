@@ -103,17 +103,20 @@ still cover disassembly and emulation, and nothing else depends on angr.
 ### The honest gaps
 
 **`decompyle3` is not installed, and cannot be.** It declares `xdis<6.3`,
-while `pyinstxtractor-ng` requires `xdis==6.3.0` exactly — genuinely
-unsatisfiable in one environment, and pip refuses the install rather than
-downgrading silently. Extraction is the non-negotiable capability, so `xdis`
-wins and `decompyle3` goes.
+while `pyinstxtractor-ng` requires `xdis==6.3.0` exactly. pip treats transitive
+constraints as hard, so it refuses the install rather than downgrading silently.
 
-**`uncompyle6` is present but transitively, via `pydumpck`.** Its metadata also
-wants `xdis<6.2.0`, so pip installed it without re-checking; the reverse smoke
-suite runs its CLI at build time, which is what actually establishes that it
-works here. Treat it as best-effort rather than a guaranteed interface — if a
-future `pydumpck` drops the dependency, it disappears. `pycdc`/`pycdas` cover
-arbitrary bytecode versions as the fallback.
+**`uncompyle6` hits the same ceiling** (it declares `xdis<6.3,>=6.1.0`), and it
+arrives through `pydumpck`. Since neither can be resolved normally, `pydumpck`
+and `uncompyle6` are installed with `--no-deps` from
+`docker/requirements-reverse-nodeps.txt`, and their dependencies are pinned
+explicitly in `requirements-reverse.txt` instead. Nothing is unpinned; only the
+resolution edge is skipped. `uncompyle6` running against `xdis 6.3.0` is
+guarded by the smoke suite, which runs its CLI at build time — metadata alone
+would not tell you whether it works.
+
+`pycdc`/`pycdas` remain the version-agnostic fallback for bytecode the
+Python-side decompilers cannot read.
 
 **`pycdc` cannot fully decompile Python 3.11+ bytecode.** It runs and emits
 partial output rather than crashing, and `pycdas` gives you complete

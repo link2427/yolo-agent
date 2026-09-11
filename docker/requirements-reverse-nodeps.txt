@@ -1,0 +1,20 @@
+# Packages installed with `--no-deps`. Read this before adding anything.
+#
+# pip's resolver treats transitive version constraints as hard, so a package
+# whose dependency range contradicts another pin cannot be installed normally.
+# `--no-deps` skips resolving that edge; the dependencies themselves are pinned
+# explicitly in requirements-reverse.txt instead, so the environment stays
+# complete and reproducible -- only the resolution edge is dropped.
+#
+# The conflict this exists for:
+#   pyinstxtractor-ng==2026.7.3  requires  xdis==6.3.0   (exact)
+#   pydumpck==1.20.1             requires  uncompyle6>=3.9.0
+#   uncompyle6==3.9.3            requires  xdis<6.3,>=6.1.0
+#
+# Nothing satisfies all three. Extraction is the capability this image exists
+# for, so xdis wins and these two are installed without dependency resolution.
+# uncompyle6 running against xdis 6.3.0 is therefore unverified by its metadata
+# and is guarded by the smoke suite, which runs its CLI during the build.
+
+pydumpck==1.20.1
+uncompyle6==3.9.3
