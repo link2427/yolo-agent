@@ -76,13 +76,26 @@ exe="$work/dist/probepkg"
 test -x "$exe"
 file -b "$exe" | grep -q '^ELF 64-bit'
 
-pyinstxtractor-ng "$exe" > "$work/pyi.log" 2>&1
+# pyinstxtractor-ng creates its output directory in the CURRENT WORKING
+# DIRECTORY (os.path.join(os.getcwd(), basename + "_extracted")), not next to the
+# input file, so run it from the work directory and reference the result there.
+(
+  cd "$work"
+  pyinstxtractor-ng "$exe"
+) > "$work/pyi.log" 2>&1
 grep -qi 'pyinstaller' "$work/pyi.log"
 
-extract_dir="$work/dist/probepkg_extracted"
-test -d "$extract_dir"
+extract_dir="$work/probepkg_extracted"
+test -d "$extract_dir" || {
+  echo "ERROR: pyinstxtractor-ng produced no extraction directory" >&2
+  echo "--- pyi.log ---" >&2; cat "$work/pyi.log" >&2; exit 1
+}
 found_pyc="$(find "$extract_dir" -maxdepth 1 -name 'app.pyc' -o -maxdepth 1 -name 'app.*.pyc' | head -1)"
-test -n "$found_pyc"
+test -n "$found_pyc" || {
+  echo "ERROR: no app bytecode extracted" >&2
+  ls -la "$extract_dir" >&2 || true
+  exit 1
+}
 echo ">> extracted $(find "$extract_dir" -type f | wc -l) files; app bytecode at $found_pyc"
 
 # The extracted .pyc is missing its header (PyInstaller strips it), which is the

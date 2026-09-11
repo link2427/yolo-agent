@@ -206,6 +206,7 @@ ARG CODE_SERVER_VERSION
 ARG TTYD_VERSION
 
 COPY --chmod=0755 docker/tests/smoke-common.sh docker/tests/smoke-reverse.sh /tmp/
+COPY --chmod=0755 docker/tests/check-seccomp.py /tmp/check-seccomp.py
 RUN OPENCODE_VERSION="${OPENCODE_VERSION}" \
     PI_VERSION="${PI_VERSION}" \
     DSH_VERSION="${DSH_VERSION}" \
