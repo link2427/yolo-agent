@@ -17,6 +17,17 @@ for tool in gcc g++ clang clang++ clangd lld ld.lld lldb gdb make ninja cmake \
   command -v "$tool" >/dev/null
 done
 
+# The cross compiler must be the POSIX-threading variant, or <mutex> and
+# std::thread's variadic constructor do not exist. Check the resolved binary
+# rather than trusting update-alternatives to have picked what we asked for.
+x86_64_w64_gpp="$(readlink -f "$(command -v x86_64-w64-mingw32-g++)")"
+case "$x86_64_w64_gpp" in
+  *-posix) echo ">> cross compiler is the posix variant: $x86_64_w64_gpp" ;;
+  *) echo "ERROR: x86_64-w64-mingw32-g++ resolves to $x86_64_w64_gpp," >&2
+     echo "       expected the -posix variant (win32 breaks <mutex>/std::thread)" >&2
+     exit 1 ;;
+esac
+
 cmake --version | head -1
 ninja --version
 gcc --version | head -1
@@ -32,6 +43,7 @@ work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 cat > "$work/hello.cpp" <<'EOF'
 #include <iostream>
+#include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
@@ -39,12 +51,23 @@ cat > "$work/hello.cpp" <<'EOF'
 int main() {
     std::vector<std::string> parts{"yolo", "agent", "cpp"};
     std::string joined;
-    for (const auto& p : parts) joined += p + " ";
+    std::mutex m;
+    // Spawn and join: the win32 threading model compiles `std::thread t;` but
+    // has no variadic constructor, so only a real spawn detects it.
+    std::thread t([&] {
+        std::lock_guard<std::mutex> g(m);
+        for (const auto& p : parts) joined += p + " ";
+    });
+    t.join();
     std::cout << joined << std::this_thread::get_id() << '\n';
-    return 0;
+    return joined.empty() ? 1 : 0;
 }
 EOF
 
+# Uses <mutex> and spawns+joins a real thread on purpose. Under mingw's win32
+# threading model `std::thread t;` (default ctor) still compiles and links, so a
+# shallow check passes while real code fails -- and -pthread is accepted
+# silently rather than erroring. The cross build below is what guards that.
 g++ -O2 -std=c++20 "$work/hello.cpp" -o "$work/hello-gcc.elf" -pthread
 file -b "$work/hello-gcc.elf" | grep -q '^ELF 64-bit'
 "$work/hello-gcc.elf" >/dev/null
@@ -53,8 +76,9 @@ clang++ -O2 -std=c++20 "$work/hello.cpp" -o "$work/hello-clang.elf" -fuse-ld=lld
 file -b "$work/hello-clang.elf" | grep -q '^ELF 64-bit'
 "$work/hello-clang.elf" >/dev/null
 
-# Cross build. -pthread exercises the POSIX threading model of Debian's
-# mingw-w64, which is the default alternative.
+# Cross build. -pthread exercises the POSIX threading model, and hello.cpp uses
+# <mutex> plus a real spawned thread, so this fails loudly under the win32
+# variant instead of silently producing a binary that cannot use threads.
 x86_64-w64-mingw32-g++ -O2 -std=c++20 "$work/hello.cpp" \
   -o "$work/hello-mingw.exe" -pthread -static
 file -b "$work/hello-mingw.exe" | grep -q 'PE32+ executable (console) x86-64'

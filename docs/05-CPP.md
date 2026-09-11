@@ -70,6 +70,49 @@ cmake --build build-win
 Omit the toolchain file entirely and CMake uses the default native `cc`/`c++`
 (GCC), which also works.
 
+### The cross compiler always uses the POSIX threading model
+
+Installing `g++-mingw-w64-x86-64` pulls in **both** threading variants, and
+Debian's default is the **win32** one (alternative priority 60 vs 30 for posix).
+Under win32, `_GLIBCXX_HAS_GTHREADS` is undefined, which means:
+
+- `<mutex>` fails to compile (`'mutex' is not a member of 'std'`);
+- `std::thread`'s variadic constructor does not exist, so `std::thread t(f);`
+  fails;
+- **but** `std::thread t;` — the default constructor — still compiles and links,
+  and `-pthread` is accepted *silently* rather than erroring.
+
+That combination is a trap: a shallow test passes while real threaded code does
+not work. The image therefore selects posix explicitly
+(`update-alternatives --set x86_64-w64-mingw32-g++ …-posix`), and both the
+toolchain installer and the smoke suite spawn and join an actual thread so the
+win32 model cannot slip through. Verify it yourself:
+
+```bash
+readlink -f "$(command -v x86_64-w64-mingw32-g++)"   # must end in -posix
+```
+
+### clang cross-compilation works, via one symlink
+
+The C++ headers for the cross compiler live in a variant-suffixed directory
+(`/usr/lib/gcc/x86_64-w64-mingw32/12-posix/include/c++/`). clang 14's
+installation detector only recognises a **plain numeric** version directory, so
+it looks for `include/g++-v0`, finds nothing, and fails with
+`fatal error: 'cstdio' file not found`.
+
+The image creates `/usr/lib/gcc/x86_64-w64-mingw32/12` as a symlink to
+`12-posix`, after which this works for both headers and linking:
+
+```bash
+clang++ --target=x86_64-w64-windows-gnu -fuse-ld=lld -std=c++20 -pthread \
+  main.cpp -o main.exe
+```
+
+Note that `--gcc-toolchain=` does **not** help here — clang reports it as unused
+— and `-isystem` alone fixes the headers while still failing at link time. Newer
+LLVM handles the `12-posix` name natively; this workaround is specific to the
+clang 14 that Debian 12 ships.
+
 ### What the mingw toolchain file sets
 
 - `CMAKE_SYSTEM_NAME Windows`, processor `x86_64`, prefix `x86_64-w64-mingw32`.

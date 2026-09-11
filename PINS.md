@@ -62,6 +62,12 @@ in **every** image so IntelliSense works in the base container too; only
 | mingw-w64 cross toolchain | 10.0.0-3 (`gcc-mingw-w64-x86-64` 12.2.0) | apt | distro-managed; Debian's POSIX threading model is the default |
 | Temurin JDK | 21.0.12.1+1 | Adoptium GitHub release | sha256 `ce79869e13…faee94`; required because Ghidra ≥ 12 needs Java 21 and Debian 12 ships only OpenJDK 17 |
 
+The mingw-w64 cross compiler is pinned to the **POSIX threading variant** via
+`update-alternatives`. Both variants are installed and Debian's default is
+win32, which silently breaks `<mutex>` and `std::thread` while still accepting
+`-pthread`; the toolchain installer and the C++ smoke suite both assert the
+posix variant is the one resolved.
+
 Note: Debian 12 provides clang/lld/lldb **14**. A newer LLVM would have to be
 vendored and would cost several hundred MB; the distro version is what
 "lightweight and offline" allows here.

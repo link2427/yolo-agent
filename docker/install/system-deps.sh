@@ -22,7 +22,10 @@ export DEBIAN_FRONTEND=noninteractive
 packages=(
   # core userland the agents shell out to
   ca-certificates curl wget git openssh-client gnupg
-  jq ripgrep fd-find tree less file
+  jq ripgrep fd-find tree less
+  # 'file' is used by every smoke test; it also arrives via libtool in the cpp
+  # image, but relying on that is accidental, so list it explicitly.
+  file
   unzip zip xz-utils zstd tar bzip2 p7zip-full
   tmux procps psmisc htop lsof
   vim-tiny nano nano-tiny
