@@ -57,8 +57,17 @@ RUN bash /tmp/system-deps.sh && rm -f /tmp/system-deps.sh
 # --- Node runtime (copied, not installed) ------------------------------------
 FROM ${NODE_IMAGE} AS nodedist
 
+# --- Node runtime ------------------------------------------------------------
+# Installed here (not in the runtime stage) because npm/corepack are needed by
+# the DeepSeek Harness install further down. Every later stage inherits PATH.
+FROM base AS node
+COPY --from=nodedist /usr/local/ /opt/node/
+COPY docker/install/install-node.sh /tmp/install-node.sh
+RUN bash /tmp/install-node.sh && rm -f /tmp/install-node.sh
+ENV PATH=/usr/local/bin:$PATH
+
 # --- agent CLIs --------------------------------------------------------------
-FROM base AS agents
+FROM node AS agents
 
 ARG OPENCODE_VERSION
 ARG OPENCODE_SHA256
@@ -120,13 +129,15 @@ ENV LANG=C.UTF-8 \
     DSH_HOME=/home/agent/.dsh \
     PATH=/opt/pyenv/bin:/home/agent/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
-# Node runtime from the official image (binaries + bundled npm/corepack).
-COPY --from=nodedist /usr/local/bin/node /usr/local/bin/node
-COPY --from=nodedist /usr/local/lib/node_modules /usr/local/lib/node_modules
-RUN ln -sf /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
- && ln -sf /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
- && ln -sf /usr/local/lib/node_modules/corepack/dist/corepack.js /usr/local/bin/corepack \
- && node --version && npm --version
+# Node runtime. The `node` stage installed it into /usr/local; this stage
+# descends from `base`, so it must copy that tree in explicitly rather than
+# relying on the stage chain.
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
+COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
+COPY --from=node /usr/local/bin/npm /usr/local/bin/npm
+COPY --from=node /usr/local/bin/npx /usr/local/bin/npx
+COPY --from=node /usr/local/bin/corepack /usr/local/bin/corepack
+RUN node --version && npm --version && corepack --version
 
 # Agent CLIs, DeepSeek Harness, Python environment, browser IDE.
 COPY --from=deepseek-harness /opt/opencode /opt/opencode
