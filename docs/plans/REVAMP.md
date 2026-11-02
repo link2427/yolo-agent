@@ -335,9 +335,10 @@ easy to misdiagnose.
 4. **Proxy for packages** — see `PACKAGE-MIRROR.md`, not part of this revamp.
 5. Whether `t3` or `agent` is the default profile.
 6. Whether the base image private-visibility bug (2.3) is fixed before or after.
-7. **SVG rasterization** — see `AGENT-VERSIONS.md` section 7. Whether the base
-   image gains `librsvg2-bin`, and whether `qwen3.8-27b` accepts image input at
-   all.
+7. **Image input** — see `AGENT-VERSIONS.md` section 7. Root cause found: pi
+   defaults `input` to `["text"]` and `configure-agents.sh` never sets it, so
+   images never reach the model. Also verify T3 passes attachments through, and
+   check `--limit-mm-per-prompt` on SEC09.
 
 ---
 

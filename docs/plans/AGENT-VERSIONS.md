@@ -187,9 +187,10 @@ Add to the smoke suite:
 7. `dsh` is absent, and no script references it.
 8. The T3 entrypoint path configures agents and git with no `.bashrc` in play
    (see `REVAMP.md` section 5).
-9. SVG handling: feed a small SVG to the agent against the stub endpoint and
-   assert the failure mode. If it still reports a missing rasterizer, assert
-   `rsvg-convert` is present and produces a non-empty PNG (section 7).
+9. Image input: attach a small PNG to a prompt through pi and assert the
+   request carries an `image_url` content part (section 7). This is a
+   config-level assertion and needs no real model. A stub endpoint can capture
+   the payload and assert on it.
 
 A stub endpoint is required because CI has no vLLM. A small Python server that
 answers `/v1/models` and a fixed `/v1/chat/completions` is enough, and it also
@@ -198,85 +199,103 @@ in the shape pi expects.
 
 ---
 
-## 7. Multi-modal gap: SVG cannot be seen (2.0.0 issue, unverified in 1.5.0)
+## 7. Image input must work end to end
 
-Reported against 2.0.0: Qwen cannot see SVG output. The failure mentions a
-missing **rasterizer**, which means something in the stack did try to convert
-the SVG into an image before sending it, and found no tool to do it.
+Reported on 2.0.0: Qwen could not see an SVG. The SVG was a bad example but the
+underlying requirement is real and general: `qwen3.8-27b` has a **native vision
+encoder**, so image input should work, and it must be verified end to end rather
+than discovered by accident.
 
-### 7.1 Why a rasterizer is involved at all
+### 7.1 ROOT CAUSE FOUND: pi is told the model is text-only
 
-Multimodal models consume **raster** images (PNG/JPEG), usually as base64 data
-URLs on an `image_url` content part. SVG is XML text, not a raster image, so it
-cannot be passed through directly. Anything that wants a model to "look at" an
-SVG must first rasterize it.
+`configure-agents.sh` writes this model entry:
 
-The 2.0.0 image ships no rasterizer of its own:
+```json
+{ "id": "qwen3.8-27b", "name": "qwen3.8-27b", "reasoning": true,
+  "thinkingLevelMap": {...}, "contextWindow": ..., "maxTokens": 32768 }
+```
+
+There is **no `input` field**. pi documents its default explicitly:
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `input` | `("text" \| "image")[]` | **`["text"]`** |
+
+So pi is being told the model accepts text only. Any image the user attaches is
+either dropped before the request or rejected client side. That is a repo bug, not
+a missing system package, and no amount of rasterizer tooling fixes it.
+
+**Fix:**
+
+```json
+"input": ["text", "image"]
+```
+
+Add it to `MODEL_ENTRY_JSON` in `configure-agents.sh`. One field, and it is the
+most likely complete fix for the reported symptom.
+
+### 7.2 The rest of the chain, for completeness
+
+| Hop | Requirement | Status |
+| --- | --- | --- |
+| Harness declares capability | pi `input: ["text","image"]` | **missing — fix above** |
+| Harness reads the file | pi `read` tool, "Read text files and supported images" | available |
+| `@path` in a prompt | supports an image path | available |
+| Attachment plumbing | pi `images` resize (`maxWidth`, `maxHeight`, `maxBytes`, `jpegQuality`, `maxPerMessage`, `maxPerRequest`) | optional tuning |
+| T3 passes images | not documented as a provider image path | **verify** |
+| vLLM accepts the request | `--limit-mm-per-prompt` | **verify on SEC09** |
+| Model encodes it | `qwen3.8-27b` native vision encoder | believed OK, unverified |
+
+### 7.3 vLLM side
+
+vLLM needs the served model to be multimodal and accepts a per-prompt cap,
+configured with `--limit-mm-per-prompt`. If the server was started with a limit
+of 0 for images, or the model was loaded as text-only, every image request fails
+regardless of what pi is told.
+
+Check on SEC09:
+
+```bash
+curl -s http://192.168.1.101:8000/v1/models | python3 -m json.tool
+```
+
+and inspect the launch arguments for `--limit-mm-per-prompt`. Worth doing once,
+now, because it is a server-side fact that no client change can work around.
+
+### 7.4 What about SVG
+
+SVG is XML text, not a raster image. A multimodal endpoint expects PNG/JPEG
+content parts, so an SVG must be rasterized before a model can look at it. The
+2.0.0 image ships no rasterizer:
 
 | Candidate | In 2.0.0? |
 | --- | --- |
 | `rsvg-convert` (`librsvg2-bin`) | no |
-| ImageMagick (`convert` / `magick`) | no |
-| `cairosvg` (Python) | no |
-| `resvg` | no |
+| ImageMagick | no |
+| `cairosvg` | no |
 | headless Chrome | no |
 
-So if the harness or the model wrapper looks for one, it fails exactly as
-reported.
+But this is now a **separate, lower-priority** issue. The reported failure was
+almost certainly the missing `input` field, which affects every image format.
+Fix the capability first, then decide whether SVG-conversion convenience is worth
+1-2 MiB of `librsvg2-bin`.
 
-### 7.2 pi 1.5.0 probably does not fix this
+Note that T3's headless Chrome, if it is ever pre-seeded (see `REVAMP.md` section
+4.4), renders SVG natively and can serve as an on-demand rasterizer.
 
-The bump is **unverified** against this specific issue. pi is a harness: it
-decides what to send to the model, but it does not bundle image converters, and
-the 1.5.0 release notes do not mention SVG, rasterization, or image handling.
+### 7.5 opencode side
 
-Two possibilities, and they need different fixes:
+opencode normalizes attachments globally, not per model:
 
-- If pi gained an internal SVG path in 1.x, the bump fixes it and nothing else is
-  needed.
-- If pi still shells out to a system rasterizer, the gap persists and the image
-  must provide one.
+```json
+{ "attachment": { "image": { "auto_resize": true, "max_width": 2000,
+  "max_height": 2000, "max_base64_bytes": 5242880 } } }
+```
 
-Check before assuming either. Cheap test once a build exists: give the agent a
-small SVG in a fresh container and see whether the error changes shape.
-
-### 7.3 Cheapest fix: add a rasterizer to the base image
-
-`librsvg2-bin` is a few MiB and comes from the Debian archive already used by
-`system-deps.sh`, so it costs almost nothing in build time or image size.
-
-| Option | Size | Notes |
-| --- | --- | --- |
-| `librsvg2-bin` | ~1-2 MiB | `rsvg-convert -w 1600 -h 1600 in.svg -o out.png`; most direct |
-| `imagemagick` | ~15 MiB | also handles many other formats; heavier, and its SVG delegate still routes through librsvg |
-| `cairosvg` | small pip | adds a Python dependency and a native cairo requirement |
-
-Recommendation: `librsvg2-bin`, invoked explicitly. It is the smallest change and
-its behaviour is predictable.
-
-### 7.4 Two caveats
-
-**Is the model actually multimodal?** A text-only model cannot consume an image
-no matter what rasterizer exists; the request would be rejected or the image
-ignored. Confirm `qwen3.8-27b` on SEC09 accepts image content at all before
-spending effort here. If it is text-only, the correct answer is to convert SVG to
-a **text** description, not to a raster.
-
-**Rasterizing is not the same as seeing.** SVG diagrams often carry meaning in
-small text. A default 800px render can make labels illegible, and the model will
-then guess. Rasterize at a generous width and, where the SVG is simple, consider
-also emitting its text nodes so the model has both.
-
-### 7.5 Interaction with T3's headless Chrome
-
-If T3's headless Chrome is resolved (see `REVAMP.md` section 4.4), it is itself a
-rasterizer: Chrome renders SVG natively. That would close this gap as a side
-effect for anything routed through T3's browser, and is an argument for solving
-the Chrome question rather than deferring it.
-
-The two are not equivalent though. A browser renders on demand for browser and
-preview features; a CLI rasterizer is usable by any tool, including an agent
-shelling out. Adding `librsvg2-bin` is worth doing regardless.
+That is resize behaviour, not a capability flag. Whether opencode gates image
+support on a per-model capability for a **custom** provider is unconfirmed; it
+may need the model declared differently. Verify separately from pi rather than
+assuming one fix covers both harnesses.
 
 ---
 
