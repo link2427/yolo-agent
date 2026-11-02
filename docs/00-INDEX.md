@@ -19,6 +19,14 @@ independently shippable to an air-gapped host.
 | [12-TROUBLESHOOTING.md](12-TROUBLESHOOTING.md) | Symptom, cause, and fix for common failures |
 | [13-COMMAND-REFERENCE.md](13-COMMAND-REFERENCE.md) | Operator command cheat sheet |
 
+Plans for work that is not built yet live in [plans/](plans/):
+
+| Document | Purpose |
+| --- | --- |
+| [plans/REVAMP.md](plans/REVAMP.md) | 3.0: one image, T3 Code, compose profiles, per-person projects |
+| [plans/AGENT-VERSIONS.md](plans/AGENT-VERSIONS.md) | Bump opencode to 1.19.5 and pi to 1.5.0, add pi sub-agents |
+| [plans/PACKAGE-MIRROR.md](plans/PACKAGE-MIRROR.md) | Offline pip/npm/shadcn mirror: blockers, proxy architecture, sizing |
+
 These docs are copied into every image at `/opt/yolo/docs`, so an agent inside
 the container can read them without the repository. The authoritative copy is
 always the repository, and [PINS.md](../PINS.md) is the file that defines what
