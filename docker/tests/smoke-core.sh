@@ -11,9 +11,9 @@ test ! -w /usr && test ! -w /opt && test ! -w /etc
 test "$(find / -xdev -type f -perm /6000 2>/dev/null | wc -l)" -eq 0
 
 # --- runtimes and base tools -------------------------------------------------
-node --version | grep -q '^v22'
+node --version | grep '^v22' >/dev/null
 npm --version >/dev/null
-python3 --version 2>&1 | grep -q '3\.11'
+python3 --version 2>&1 | grep '3\.11' >/dev/null
 test "$(readlink -f "$(command -v python3)")" = "$(readlink -f /opt/pyenv/bin/python3)"
 python3 -c 'import requests, httpx, yaml, pytest, numpy, pydantic, rich, lxml'
 for t in git git-lfs curl jq rg fdfind shellcheck tmux vi unzip xz tini socat file rsync sqlite3 patch \
@@ -28,7 +28,7 @@ for a in opencode claude qwen pi crush goose codex; do
   ver="$(awk -v a="$a" '$1==a{print $2}' /opt/agents/VERSIONS.txt)"
   test -n "$ver"
   out="$(timeout 60 "$a" --version 2>&1)" || { echo "$a --version failed: $out" >&2; exit 1; }
-  printf '%s\n' "$out" | grep -Fq "$ver" || { echo "$a: expected $ver, got: $out" >&2; exit 1; }
+  printf '%s\n' "$out" | grep -F "$ver" >/dev/null || { echo "$a: expected $ver, got: $out" >&2; exit 1; }
 done
 
 # --- stub model server --------------------------------------------------------
@@ -94,7 +94,7 @@ cd - >/dev/null
 jq -se 'all(.[]; .auth == "Bearer yolo-smoke" and .model == "Qwen/Qwen3-Stub")' "$STUB_LOG"
 
 # --- skills -------------------------------------------------------------------
-yolo skills list | grep -q yolo-airgap
+yolo skills list | grep yolo-airgap >/dev/null
 for d in .claude/skills .agents/skills; do test -e "$HOME/$d/yolo-airgap/SKILL.md"; done
 yolo skills enable pdf
 test -e "$HOME/.claude/skills/pdf/SKILL.md"
@@ -120,7 +120,7 @@ wait_http http://127.0.0.1:8080/healthz || { cat /tmp/code.log; exit 1; }
 wait_http http://127.0.0.1:7681/ || { cat /tmp/term.log; exit 1; }
 wait_http http://127.0.0.1:8081/health || { cat /tmp/files.log; exit 1; }
 wait_http http://127.0.0.1:4096/ 90 || { cat /tmp/chat.log; exit 1; }
-curl -fsS --max-time 10 http://127.0.0.1:4096/ | grep -qi '<html' || { echo "opencode web served no UI" >&2; exit 1; }
+curl -fsS --max-time 10 http://127.0.0.1:4096/ | grep -i '<html' >/dev/null || { echo "opencode web served no UI" >&2; exit 1; }
 
 # --- lab gateway, against the stub -------------------------------------------
 UPSTREAM_URL=http://127.0.0.1:18000 LAB_DATA=/tmp/lab LAB_PORT=4000 SCRAPE_SECONDS=2 \
@@ -128,7 +128,7 @@ UPSTREAM_URL=http://127.0.0.1:18000 LAB_DATA=/tmp/lab LAB_PORT=4000 SCRAPE_SECON
 wait_http http://127.0.0.1:4000/ || { cat /tmp/gw.log; exit 1; }
 curl -fsS --max-time 10 http://127.0.0.1:4000/v1/models | jq -e '.data[0].id == "Qwen/Qwen3-Stub"'
 curl -fsS --max-time 10 http://127.0.0.1:4000/api/live | jq -e 'type == "object"'
-curl -fsS --max-time 10 http://127.0.0.1:4000/ | grep -q 'SEC09'
+curl -fsS --max-time 10 http://127.0.0.1:4000/ | grep 'SEC09' >/dev/null
 
 # --- bot module loads ---------------------------------------------------------
 python3 -I -B -c 'import sys; sys.path.insert(0, "/opt/yolo/lib"); import bot; assert bot.cron_match("*/15 9-17 * * 1-5", __import__("datetime").datetime(2026, 11, 9, 9, 30))'

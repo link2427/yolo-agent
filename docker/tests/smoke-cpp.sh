@@ -37,12 +37,12 @@ case "$x86_64_w64_gfortran" in
      exit 1 ;;
 esac
 
-cmake --version | head -1
+cmake --version | sed -n 1p
 ninja --version
-gcc --version | head -1
-gfortran --version | head -1
-clang --version | head -1
-x86_64-w64-mingw32-gcc --version | head -1
+gcc --version | sed -n 1p
+gfortran --version | sed -n 1p
+clang --version | sed -n 1p
+x86_64-w64-mingw32-gcc --version | sed -n 1p
 
 # --- ccache can create and use its directory in the home volume -------------
 mkdir -p "$CCACHE_DIR"
@@ -80,11 +80,11 @@ EOF
 # shallow check passes while real code fails -- and -pthread is accepted
 # silently rather than erroring. The cross build below is what guards that.
 g++ -O2 -std=c++20 "$work/hello.cpp" -o "$work/hello-gcc.elf" -pthread
-file -b "$work/hello-gcc.elf" | grep -q '^ELF 64-bit'
+file -b "$work/hello-gcc.elf" | grep '^ELF 64-bit' >/dev/null
 "$work/hello-gcc.elf" >/dev/null
 
 clang++ -O2 -std=c++20 "$work/hello.cpp" -o "$work/hello-clang.elf" -fuse-ld=lld -pthread
-file -b "$work/hello-clang.elf" | grep -q '^ELF 64-bit'
+file -b "$work/hello-clang.elf" | grep '^ELF 64-bit' >/dev/null
 "$work/hello-clang.elf" >/dev/null
 
 # Cross build. -pthread exercises the POSIX threading model, and hello.cpp uses
@@ -92,11 +92,11 @@ file -b "$work/hello-clang.elf" | grep -q '^ELF 64-bit'
 # variant instead of silently producing a binary that cannot use threads.
 x86_64-w64-mingw32-g++ -O2 -std=c++20 "$work/hello.cpp" \
   -o "$work/hello-mingw.exe" -pthread -static
-file -b "$work/hello-mingw.exe" | grep -q 'PE32+ executable (console) x86-64'
+file -b "$work/hello-mingw.exe" | grep 'PE32+ executable (console) x86-64' >/dev/null
 
 # The PE must not depend on the mingw runtime DLLs, since the target Windows
 # host will not have them.
-if x86_64-w64-mingw32-objdump -p "$work/hello-mingw.exe" | grep -q 'DLL Name: libstdc++'; then
+if x86_64-w64-mingw32-objdump -p "$work/hello-mingw.exe" | grep 'DLL Name: libstdc++' >/dev/null; then
   echo "ERROR: cross binary links libstdc++ dynamically" >&2
   exit 1
 fi
@@ -155,15 +155,15 @@ cmake -S "$work/proj" -B "$work/proj/build-linux" -G Ninja \
 cmake --build "$work/proj/build-linux" --parallel "$(nproc)"
 test -f "$work/proj/build-linux/compile_commands.json"
 ctest --test-dir "$work/proj/build-linux" --output-on-failure
-file -b "$work/proj/build-linux/probe" | grep -q '^ELF 64-bit'
-"$work/proj/build-linux/probe" 10 | grep -q 'fib(10) = 55'
+file -b "$work/proj/build-linux/probe" | grep '^ELF 64-bit' >/dev/null
+"$work/proj/build-linux/probe" 10 | grep 'fib(10) = 55' >/dev/null
 
 # Windows: configure and cross build. Nothing is executed.
 cmake -S "$work/proj" -B "$work/proj/build-win" -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_TOOLCHAIN_FILE=/opt/yolo/cmake-toolchains/mingw-w64-x86_64.cmake
 cmake --build "$work/proj/build-win" --parallel "$(nproc)"
-file -b "$work/proj/build-win/probe.exe" | grep -q 'PE32+ executable (console) x86-64'
+file -b "$work/proj/build-win/probe.exe" | grep 'PE32+ executable (console) x86-64' >/dev/null
 
 # --- the documented helper produces both artifacts --------------------------
 cpp-build "$work/proj" both >/tmp/cpp-build.log 2>&1
@@ -237,8 +237,8 @@ target_link_libraries(mixed PRIVATE LAPACK::LAPACK)
 EOF
 cmake -S "$work/fproj" -B "$work/fproj/build" -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build "$work/fproj/build" --parallel "$(nproc)"
-"$work/fproj/build/fprobe" | grep -q '0\.8000 *1\.4000'
-"$work/fproj/build/mixed" | grep -q 'mixed 0.8000 1.4000'
+"$work/fproj/build/fprobe" | grep '0\.8000 *1\.4000' >/dev/null
+"$work/fproj/build/mixed" | grep 'mixed 0.8000 1.4000' >/dev/null
 
 mkdir -p "$work/fhello"
 cat > "$work/fhello/hello.f90" <<'EOF'
@@ -256,14 +256,14 @@ EOF
 cmake -S "$work/fhello" -B "$work/fhello/build-linux" -G Ninja \
   -DCMAKE_TOOLCHAIN_FILE=/opt/yolo/cmake-toolchains/linux-x86_64-clang.cmake
 cmake --build "$work/fhello/build-linux"
-"$work/fhello/build-linux/fh" | grep -q 'yolo agent fortran'
+"$work/fhello/build-linux/fh" | grep 'yolo agent fortran' >/dev/null
 
 # Windows: a static PE with no Fortran runtime DLL dependency.
 cmake -S "$work/fhello" -B "$work/fhello/build-win" -G Ninja \
   -DCMAKE_TOOLCHAIN_FILE=/opt/yolo/cmake-toolchains/mingw-w64-x86_64.cmake
 cmake --build "$work/fhello/build-win"
-file -b "$work/fhello/build-win/fh.exe" | grep -q 'PE32+ executable (console) x86-64'
-if x86_64-w64-mingw32-objdump -p "$work/fhello/build-win/fh.exe" | grep -qE 'DLL Name: (libgfortran|libquadmath|libgcc|libwinpthread)'; then
+file -b "$work/fhello/build-win/fh.exe" | grep 'PE32+ executable (console) x86-64' >/dev/null
+if x86_64-w64-mingw32-objdump -p "$work/fhello/build-win/fh.exe" | grep -E 'DLL Name: (libgfortran|libquadmath|libgcc|libwinpthread)' >/dev/null; then
   echo "ERROR: Fortran cross binary depends on mingw runtime DLLs" >&2
   x86_64-w64-mingw32-objdump -p "$work/fhello/build-win/fh.exe" | grep 'DLL Name:' >&2
   exit 1
