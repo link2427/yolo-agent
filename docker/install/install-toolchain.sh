@@ -5,7 +5,8 @@
 #   native linux/amd64 : gcc, g++, clang(+clangd), lld, lldb, gdb, make, ninja,
 #                        cmake, pkg-config, nasm, ccache, lcov, gcovr, strace,
 #                        ltrace, valgrind, doxygen, graphviz, autotools
-#   cross Windows x64  : x86_64-w64-mingw32-gcc / -g++  -> PE32+ executables
+#   native Fortran     : gfortran, with reference LAPACK/BLAS
+#   cross Windows x64  : x86_64-w64-mingw32-gcc / -g++ / -gfortran -> PE32+
 #
 # Notes that matter on a rebuild:
 #   * There is no `gdb-mingw-w64-x86-64` package in Debian 12 — do not add it.
@@ -30,6 +31,8 @@ apt-get update
 packages=(
   # --- native C/C++ ---
   gcc g++ make
+  # --- Fortran (GCC 12 frontend) + the linear algebra most Fortran code links ---
+  gfortran liblapack-dev libblas-dev
   clang clangd clang-tools-14
   lld lldb
   gdb
@@ -40,10 +43,11 @@ packages=(
   # --- assembly ---
   nasm
   # --- mingw-w64 cross toolchain (64-bit Windows) ---
-  # The umbrella `mingw-w64` package plus both C and C++ frontends for x86_64.
+  # The umbrella `mingw-w64` package plus the C, C++ and Fortran frontends.
   mingw-w64
   gcc-mingw-w64-x86-64
   g++-mingw-w64-x86-64
+  gfortran-mingw-w64-x86-64
   binutils-mingw-w64-x86-64
   # --- documentation / graph output ---
   doxygen graphviz
@@ -71,6 +75,11 @@ apt-get clean
 # gcov, ...) follow the master alternative automatically.
 update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
 update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
+# gfortran is registered as its own master alternative, so it does not follow
+# gcc. Select it when it exists; the smoke suite checks what it resolves to.
+if update-alternatives --list x86_64-w64-mingw32-gfortran >/dev/null 2>&1; then
+  update-alternatives --set x86_64-w64-mingw32-gfortran /usr/bin/x86_64-w64-mingw32-gfortran-posix
+fi
 
 # --- let clang find the mingw C++ headers ------------------------------------
 # The headers live in a variant-suffixed directory (12-posix). clang 14's
@@ -156,6 +165,38 @@ if clang++ --target=x86_64-w64-windows-gnu \
 else
   echo ">> note: clang cross-compile unavailable; use the gcc cross frontend"
   sed -n '1,3p' "$tmp/clang.err" || true
+fi
+
+# --- Fortran: native ELF through LAPACK, and a self-contained Windows PE ------
+cat > "$tmp/probe.f90" <<'EOF'
+program probe
+  implicit none
+  double precision :: a(2,2), b(2)
+  integer :: ipiv(2), info
+  a = reshape([2d0, 1d0, 1d0, 3d0], [2,2])
+  b = [3d0, 5d0]
+  call dgesv(2, 1, a, 2, ipiv, b, 2, info)
+  if (info /= 0) stop 1
+  print '(a,2f8.4)', 'fortran ok', b
+end program probe
+EOF
+gfortran --version | head -1
+x86_64-w64-mingw32-gfortran --version | head -1
+gfortran -O2 "$tmp/probe.f90" -o "$tmp/probe-f.elf" -llapack -lblas
+file -b "$tmp/probe-f.elf" | grep -q '^ELF 64-bit'
+"$tmp/probe-f.elf" | grep -q 'fortran ok'
+
+cat > "$tmp/hello.f90" <<'EOF'
+program hello
+  print *, 'fortran cross ok'
+end program hello
+EOF
+x86_64-w64-mingw32-gfortran -O2 "$tmp/hello.f90" -o "$tmp/hello-f.exe" -static
+file -b "$tmp/hello-f.exe" | grep -q 'PE32+ executable (console) x86-64'
+if x86_64-w64-mingw32-objdump -p "$tmp/hello-f.exe" | grep -qE 'DLL Name: (libgfortran|libquadmath|libgcc|libwinpthread)'; then
+  echo "ERROR: Fortran cross binary depends on mingw runtime DLLs" >&2
+  x86_64-w64-mingw32-objdump -p "$tmp/hello-f.exe" | grep 'DLL Name:' >&2
+  exit 1
 fi
 
 echo ">> install-toolchain.sh: native + mingw-w64 toolchain installed and verified"

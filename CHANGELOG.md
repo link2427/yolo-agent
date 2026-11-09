@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Fortran in `yolo-agent-cpp`: `gfortran` (GCC 12) with reference LAPACK/BLAS,
+  and the mingw-w64 Fortran cross compiler (`x86_64-w64-mingw32-gfortran`,
+  POSIX threading variant) for static 64-bit Windows binaries. Both CMake
+  toolchain files set `CMAKE_Fortran_COMPILER`. The smoke suite builds a
+  LAPACK-linked Fortran program, a mixed C++/Fortran program, and a static
+  Fortran PE with no runtime DLL dependency.
+
 ## 2.0.0 - 2026-09-11
 
 The modular overhaul. The repository now builds **three** independent images
