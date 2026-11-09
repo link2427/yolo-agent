@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+#
+# yolo — the container's control command.
+#
+#   yolo status                 what is configured, what is reachable
+#   yolo doctor                 status plus checks, with fixes
+#   yolo models                 models served by the endpoint
+#   yolo agents                 installed agents and how to start them
+#   yolo tools                  compilers and tools in this tier
+#   yolo login [token]          store a Gitea token in the home volume
+#   yolo sync                   pull the fleet repo from Gitea and reconfigure
+#   yolo configure              rewrite every agent's config (runs on start)
+#   yolo skills ...             skill library: list, search, enable, disable
+#   yolo serve <service>        run a service: home code chat term files bot gateway
+#   yolo bot hook <owner/repo|org:NAME>   install the bot webhook (lab bot only)
+set -euo pipefail
+# shellcheck source=/opt/yolo/lib/env.sh
+. /opt/yolo/lib/env.sh
+
+PY=(/opt/pyenv/bin/python -I -B)
+LIB=/opt/yolo/lib
+
+usage() { sed -n '3,16p' "$0" | sed 's/^# \{0,1\}//'; }
+
+cmd="${1:-status}"; shift || true
+case "$cmd" in
+  configure)  exec "${PY[@]}" "$LIB/configure.py" "$@" ;;
+  sync)       exec "${PY[@]}" "$LIB/configure.py" --sync "$@" ;;
+  status|doctor|models|agents|tools)
+              exec "${PY[@]}" "$LIB/status.py" "$cmd" "$@" ;;
+  login)      exec "${PY[@]}" "$LIB/configure.py" --login "$@" ;;
+  skills)     exec "${PY[@]}" "$LIB/skills.py" "$@" ;;
+  serve)      exec "$LIB/serve.sh" "$@" ;;
+  bot)        exec "${PY[@]}" "$LIB/bot.py" "$@" ;;
+  help|-h|--help) usage ;;
+  *) echo "yolo: unknown command '$cmd'" >&2; usage >&2; exit 2 ;;
+esac

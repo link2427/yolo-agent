@@ -1,7 +1,8 @@
 # 05 — C/C++
 
-`yolo-agent-cpp` is the base image plus a complete offline C/C++ toolchain. Its
-purpose is the one thing the base image cannot do: **produce a 64-bit Windows
+The `cpp` tier (`yolo-agent:3.0.0-cpp`) is the core tier plus a complete offline
+C/C++/Fortran toolchain. The `full` tier has it too. Its purpose is the one thing
+the core tier cannot do: **produce a 64-bit Windows
 executable on a machine that has no internet**.
 
 ## What is installed
@@ -27,8 +28,9 @@ Two things worth knowing up front:
 ## Quick start
 
 ```bash
-# Base image has no compilers -- use the cpp flavor.
-docker compose -f compose.cpp.yaml run --rm agent
+# In the person's folder, with YOLO_IMAGE=yolo-agent:3.0.0-cpp (or -full) in .env:
+docker compose run --rm shell
+# or open the Terminal page (port 7681) or a VS Code terminal
 ```
 
 Inside the container:
@@ -156,19 +158,19 @@ endif()
 `ctest --test-dir build-linux` then works natively, and
 `cmake --build build-win` produces `myapp.exe` without ever running it.
 
-## The `cpp-build.sh` helper
+## The `cpp-build` helper
 
 A convenience wrapper around the two configurations. It is optional — plain
 cmake works fine.
 
 ```bash
-cpp-build.sh <source-dir> [linux|windows|both] [extra cmake args...]
+cpp-build <source-dir> [linux|windows|both] [extra cmake args...]
 ```
 
 ```bash
-cpp-build.sh .                        # both targets, Release
-cpp-build.sh . windows                # Windows PE only
-cpp-build.sh . linux -DBUILD_TESTS=ON # native with an extra option
+cpp-build .                        # both targets, Release
+cpp-build . windows                # Windows PE only
+cpp-build . linux -DBUILD_TESTS=ON # native with an extra option
 ```
 
 It writes `<src>/build-linux` and `<src>/build-win`, generates
@@ -189,7 +191,7 @@ build large projects.
 
 ## Debugging
 
-The image's seccomp profile (`config/seccomp-toolchain.json`) allows `ptrace`,
+The seccomp profile (`config/seccomp.json`, used by every tier) allows `ptrace`,
 which is what makes `gdb` work. All privileged syscalls stay denied.
 
 ```bash
@@ -201,9 +203,8 @@ valgrind --leak-check=full ./main
 strace -f ./main
 ```
 
-`lldb` is also present if you prefer it. This is the practical difference
-between this image and the base image: in the base image `ptrace` is denied, so
-debuggers do not attach. Use the cpp flavor for anything you intend to debug.
+`lldb` is also present if you prefer it. The core tier has no debuggers; use
+the cpp or full tier for anything you intend to debug.
 
 ## Limitations
 
@@ -234,13 +235,11 @@ is no aarch64-windows or 32-bit i686 cross compiler in this image.
 | What | Where |
 |---|---|
 | Toolchain files | `/opt/yolo/cmake-toolchains/` |
-| Build helper | `/opt/yolo/cpp-build.sh` |
+| Build helper | `/opt/yolo/bin/cpp-build` (on `PATH` as `cpp-build`) |
 | ccache dir | `/home/agent/.cache/ccache` (`CCACHE_DIR`) |
-| Resource defaults | `compose.cpp.yaml`: 12 GB memory, 6 CPUs, 4 GB `/tmp`, 512 MB `/dev/shm` |
+| Resource defaults | `compose.yaml`: 12 GB memory, 6 CPUs, 4 GB `/tmp`, 512 MB `/dev/shm` per service |
 
-Compilation is memory-hungry, which is why the cpp compose file defaults higher
-than the base image. Override with `YOLO_MEM` and `YOLO_CPUS` in
-`config/cpp.env`, or at launch.
+Override with `YOLO_MEM`, `YOLO_CPUS` and `YOLO_TMP_SIZE` in the person's `.env`.
 
 ## Verifying the toolchain yourself
 

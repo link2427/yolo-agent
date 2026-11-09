@@ -28,6 +28,7 @@ packages=(
   file
   unzip zip xz-utils zstd tar bzip2 p7zip-full
   tmux procps psmisc htop lsof
+  rsync sqlite3 git-lfs patch
   vim-tiny nano nano-tiny
   tini socat netcat-openbsd
   # Python 3.11 (bookworm default) + build support for wheels

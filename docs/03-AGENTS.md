@@ -1,289 +1,108 @@
-# 03 — The agents
+# 03 — Agents
 
-Every image ships exactly three agents: **opencode**, **pi**, and **DeepSeek
-Harness** (`dsh`). All three are pre-wired for YOLO mode — no permission
-prompts, ever — against the OpenAI-compatible endpoint you configure in the
-flavor's env file. No cloud provider is configured in any of them.
+Seven terminal agents, plus two in the browser. All of them talk to SEC09, all
+of them run without permission prompts, and all of them are reconfigured from
+the same settings every time the container starts. Pick whichever you like;
+they share the same files in `/workspace`.
 
-Nothing here is hand-maintained. `/opt/yolo/configure-agents.sh` writes all
-three configs from the same `VLLM_*` values, and `~/.bashrc` runs it
-automatically on the first launch after you set them. Endpoint variables are in
-[09-MODEL-ENDPOINT.md](09-MODEL-ENDPOINT.md); getting a shell inside the
-container is in [02-QUICKSTART.md](02-QUICKSTART.md).
+| Command | Agent | API it uses |
+|---|---|---|
+| `claude` | Claude Code 2.1.319 | Anthropic Messages (`/v1/messages`, which vLLM serves) |
+| `opencode` | opencode 1.18.30 (also the Chat page) | OpenAI chat completions |
+| `qwen` | Qwen Code 0.27.0 | OpenAI chat completions |
+| `pi` | pi 0.85.1 | OpenAI chat completions |
+| `crush` | Crush 0.100.0 | OpenAI chat completions |
+| `goose session` | Goose 1.57.0 | OpenAI chat completions |
+| `codex` | Codex 0.167.0 — experimental | OpenAI Responses (`/v1/responses`); works only if SEC09's vLLM serves it |
 
-## Launching each agent
+In the browser: **Chat** (`:4096`) is opencode's web UI, the full agent with
+the same tools as the terminal version. **Kilo Code** is the agent panel in VS
+Code (the Kilo icon in the left bar). See [07-WEB-IDE.md](07-WEB-IDE.md).
+
+`yolo agents` lists them with versions.
+
+## Running one without a prompt
+
+Useful in scripts and for the bot:
 
 ```bash
-# host: interactive shell, /workspace = your project directory
-docker compose run --rm agent
+opencode run "explain src/main.c"
+claude -p "add a unit test for parse()"
+qwen -p "..."
+pi -p "..."
+crush run -q "..."
+goose run -t "..." --no-session
+codex exec "..."
 ```
 
-Then, inside the container:
+## How they are configured
 
-```bash
-opencode                                  # then /models to pick the served model
-pi --model vllm/Qwen/Qwen3.8-27B          # or: pi, then /model
-dsh web                                   # browser UI — publish it via compose, see 07-WEB-IDE.md
-dsh --profile headless "inspect this repository"
-```
+`yolo configure` runs on every container start (and by hand). It reads the
+settings (see [09-MODEL-ENDPOINT.md](09-MODEL-ENDPOINT.md)), asks SEC09 which
+models it serves, and writes:
 
-`opencode` and `pi` are standalone binaries under `/opt/opencode` and `/opt/pi`
-with symlinks in `/usr/local/bin`. `dsh` is the pnpm bin shim for
-`/opt/deepseek-harness`.
-
-## The three agents
-
-| Agent | Command | Version | Config file | YOLO mechanism |
-|---|---|---|---|---|
-| opencode | `opencode` | 1.18.30 | `~/.config/opencode/opencode.json` | `"permission": "allow"` |
-| pi | `pi` | 0.85.1 | `~/.pi/agent/settings.json` + `models.json` | no permission system; `defaultProjectTrust: "always"` |
-| DeepSeek Harness | `dsh` / `dsh web` | 0.1.5-rc.1 | `~/.dsh/settings.yaml` | no prompt gate in this wiring; runs non-interactively against the local endpoint |
-
-### opencode
-
-`~/.config/opencode/opencode.json`:
-
-- `"permission": "allow"` — every tool call is approved automatically; there is
-  no confirmation step at which to deny one.
-- `enabled_providers: ["vllm"]` — the provider list is narrowed to your
-  endpoint, so the model picker (`/models`) shows only what your server serves.
-- `model` and `small_model` are both `vllm/<VLLM_MODEL>`.
-- The provider block uses `@ai-sdk/openai-compatible` with `baseURL` from
-  `VLLM_BASE_URL` and `apiKey: "{env:VLLM_API_KEY}"` — the key is read from the
-  environment, never written to disk.
-- `autoupdate: false` and `share: "disabled"` — no update checks and no session
-  upload (there is no internet route anyway).
-
-### pi
-
-Two files, both mode 600:
-
-`~/.pi/agent/settings.json`
-
-- `defaultProjectTrust: "always"` — suppresses the per-project trust prompt,
-  which is the only prompt pi has.
-- `enableInstallTelemetry: false`; the image also bakes `PI_OFFLINE=1`,
-  `PI_SKIP_VERSION_CHECK=1`, and `PI_TELEMETRY=0`.
-- `defaultProvider: "vllm"`, `defaultModel`, `defaultThinkingLevel` from
-  `VLLM_REASONING_EFFORT`.
-
-`~/.pi/agent/models.json`
-
-- `providers.vllm` — `baseUrl`, `api: "openai-completions"`, `authHeader: true`,
-  and the API key inline (which is why the file is 600 and lives only in the
-  home volume).
-- `compat` — `supportsDeveloperRole: false`, `supportsReasoningEffort: true`,
-  `thinkingFormat: "qwen-chat-template"`.
-- One model entry with `reasoning: true`, the `thinkingLevelMap`, and
-  `contextWindow` / `maxTokens` when `VLLM_CONTEXT` is set.
-
-pi has no permission system at all: there is nothing to auto-approve, no
-approval dialog, and no sandbox flag. The container is the sandbox.
-
-### DeepSeek Harness (`dsh`)
-
-`DSH_HOME=/home/agent/.dsh` is baked into every image, so the config is
-`~/.dsh/settings.yaml` and harness state and session logs persist in the same
-volume.
-
-```yaml
-llm-deepseek:
-  thinking: disabled
-  models: []          # the cloud catalog stays empty on purpose
-llm-pi-ai:
-  providers:
-    vllm:             # your local endpoint, OpenAI-compatible
-```
-
-- `providers.vllm` carries `baseURL`, `api: "openai-completions"`,
-  `apiKeyEnv: VLLM_API_KEY`, `reasoning` from `VLLM_REASONING_EFFORT`, a
-  `compat` block (`supportsDeveloperRole: false`,
-  `thinkingFormat: qwen-chat-template`, `maxTokensField: max_tokens`), the model
-  id, an optional `contextWindow`, and the `reasoningEfforts` map.
-- `llm-deepseek` is deliberately `thinking: disabled` with `models: []`.
-  **Do not set `DEEPSEEK_API_KEY`** — a cloud key puts DeepSeek models back in
-  the picker, and the host has no internet route to use them on.
-- The harness binds container loopback only; publishing it is covered in
-  [07-WEB-IDE.md](07-WEB-IDE.md).
-- `configure-dsh.sh` can be run standalone and only needs `VLLM_BASE_URL` and
-  `VLLM_MODEL` in the environment.
-
-## YOLO mode: what it actually means per agent
-
-| Agent | What is disabled |
+| Agent | Files |
 |---|---|
-| opencode | `"permission": "allow"` auto-approves every tool call. |
-| pi | No permission subsystem exists; `defaultProjectTrust: "always"` also silences the trust prompt. |
-| dsh | No prompt gate in this configuration; the harness runs non-interactively against the local endpoint. |
+| opencode | `~/.config/opencode/opencode.json` (provider `vllm`, `permission: allow`, context and output limits, reasoning variants) |
+| Claude Code | `~/.claude/settings.json` (`ANTHROPIC_BASE_URL`, model for every role, `bypassPermissions`, context window), `~/.claude.json` (onboarding done, `/workspace` trusted) |
+| Qwen Code | `~/.qwen/settings.json` (OpenAI provider, `approvalMode: yolo`, no usage statistics) |
+| pi | `~/.pi/agent/settings.json`, `~/.pi/agent/models.json` |
+| Crush | `~/.config/crush/crush.json` (OpenAI-compatible provider, tools allowed, no metrics) |
+| Goose | `~/.config/goose/config.yaml` (OpenAI provider, `GOOSE_MODE: auto`, developer extension) |
+| Codex | `~/.codex/config.toml` (provider `vllm`, `wire_api = responses`, `approval_policy = never`, full access) |
+| Kilo Code | `~/.config/kilo/kilo.json` (a copy of the opencode config) and VS Code settings |
 
-Three things are worth being explicit about:
+Each command in `/opt/yolo/bin` is a small wrapper that loads
+`~/.yolo/env/<agent>.env` (keys and base URLs) and then runs the real binary
+from `/opt/agents`. **These files are rewritten on every start**: change
+settings in `.env` or the fleet repo, not in the files.
 
-1. YOLO applies to *tool* decisions only. All three still run as uid 10001 in a
-   container with a read-only root filesystem, all capabilities dropped, and
-   `no-new-privileges`, so writes land in `/workspace`, `/home/agent`, and the
-   tmpfs mounts — and nowhere else.
-2. There is no undo. An agent that deletes `/workspace` is doing exactly what
-   you configured it to be able to do, so point the mount at scratch data. See
-   [10-SECURITY.md](10-SECURITY.md).
-3. Agent configs and secrets live in the home volume. The session data, API
-   key, git token, and SSH key are all readable by anything the agent runs.
+The API key each agent sends is `yolo-<person>` (from `YOLO_PERSON`), unless
+`VLLM_API_KEY` is set to something other than `local`. vLLM ignores it; the lab
+monitor uses it to show usage per person.
 
-## Reasoning effort and context window
+## Instructions
 
-Both are driven from the env file and written into all three configs:
+Every agent reads the same instructions, `~/.yolo/AGENTS.md`, built from:
 
-| Variable | Meaning |
-|---|---|
-| `VLLM_REASONING_EFFORT` | `off`, `low`, `medium`, or `xhigh`. `high` is accepted as an alias for `xhigh`; anything else warns and falls back to `xhigh`. |
-| `VLLM_CONTEXT` | Token count the agents should assume. Must match what your vLLM server was started with (`--max-model-len`). |
+1. `/opt/yolo/AGENTS.md` in the image: the lab facts (no internet, where files
+   go, how to open pull requests).
+2. `AGENTS.md` in the fleet repo, for everyone.
+3. `people/<name>.md` in the fleet repo, for one person.
 
-How each agent receives them:
+It is linked as `~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, `~/.qwen/QWEN.md`,
+`~/.pi/agent/AGENTS.md`, `~/.config/goose/.goosehints`,
+`~/.config/opencode/AGENTS.md` and `~/.config/kilo/AGENTS.md`. Project-level
+`AGENTS.md` / `CLAUDE.md` files in a repository work as usual.
 
-| Agent | Effort | Context |
-|---|---|---|
-| opencode | `options.reasoningEffort` on the model entry, plus `variants.low` / `variants.medium` / `variants.xhigh` to switch in-session | `limit.context` + `limit.output` (32768), and `contextWindow` / `maxTokens` (32768) on the model entry |
-| pi | `defaultThinkingLevel`, plus the model entry's `thinkingLevelMap` (`off`/`low`/`medium`/`xhigh`); switch with `/effort` | `contextWindow` + `maxTokens` (32768) on the model entry |
-| dsh | `reasoning:` on the provider, plus the `reasoningEfforts` map | `contextWindow` on the model entry |
+## Skills
 
-Notes:
-
-- `off` is not a Qwen effort level. It is passed down as thinking disabled
-  (vLLM's `enable_thinking=false`, i.e. instruct mode).
-- Leave `VLLM_CONTEXT` unset and each agent falls back to its built-in catalog
-  default — often 128k for Qwen-class model ids, even when your server serves
-  more.
-- Setting `VLLM_CONTEXT` higher than the server's `--max-model-len` does not
-  make the server accept more; it only makes agents send requests that fail.
-
-## Changing the model later
-
-Edit the values on the host, then regenerate. A one-shot container already has
-the flavor's env file attached, so the script reads `VLLM_*` straight from the
-environment:
+Skills are folders with a `SKILL.md` that teach an agent a task. The image has a
+library, but only enabled skills are visible to agents, so they do not get
+cluttered.
 
 ```bash
-# host: point config/base.env (or cpp/reverse) at the new endpoint/model
-docker compose run --rm agent /opt/yolo/configure-agents.sh
+yolo skills                 # the library; ★ = enabled for you
+yolo skills search pdf
+yolo skills enable pdf      # linked into every agent's skills folder
+yolo skills enable pack:cpp
+yolo skills disable pdf
+yolo skills enable pdf --project   # copy into this repo instead, for everyone on it
 ```
 
-Or from inside an interactive shell:
+Enabled by default: `yolo-airgap`, `yolo-gitea`, `skill-creator`. The fleet
+repo can add more for everyone or one person. Packs: `core`, `cpp`, `reverse`,
+`web`, `docs`, `tools` (`yolo skills packs`). See [14-LAB.md](14-LAB.md).
 
-```bash
-/opt/yolo/configure-agents.sh            # idempotent; re-reads the container env
-```
+## YOLO mode
 
-Per-agent shortcuts, if you only need a session-level change:
+No agent asks before running a command or editing a file. That is the point of
+the container, and it is why the container is locked down
+([10-SECURITY.md](10-SECURITY.md)). Commit your work to git often.
 
-```bash
-opencode                                 # /models
-pi --model vllm/<model-id>               # or /model in-session
-```
+## Offline switches
 
-Two behaviours to know:
-
-- The automatic run in `~/.bashrc` only fires when
-  `~/.config/opencode/opencode.json` **has no `"provider"` key**. After the
-  first successful configuration the file has one, so editing the env file
-  alone does not rewrite anything — you must re-run the script as above.
-- With the LM Studio alternative (`LM_STUDIO_BASE_URL` / `LM_STUDIO_MODEL`),
-  opencode's provider id becomes `lmstudio` while the pi and dsh provider stays
-  named `vllm` pointing at the LM Studio URL. The env file is in
-  [09-MODEL-ENDPOINT.md](09-MODEL-ENDPOINT.md).
-
-## Config generation and the baked defaults
-
-`~/.bashrc`, on every launch:
-
-```bash
-# runs only if the endpoint is configured AND the opencode config has no provider yet
-if [[ -n "${VLLM_BASE_URL:-}" ]] && [[ -n "${VLLM_MODEL:-}" ]] \
-   && ! grep -q '"provider"' "$HOME/.config/opencode/opencode.json" 2>/dev/null; then
-  /opt/yolo/configure-agents.sh
-fi
-```
-
-That is the whole "first launch just works" story: copy the env template, launch,
-and all three agents are pointed at your endpoint.
-
-The files under `docker/rootfs/home/agent/` are only image defaults:
-
-- `.config/opencode/opencode.json` — schema plus `"permission": "allow"`, no
-  provider block.
-- `.pi/agent/settings.json` — `defaultProjectTrust` and
-  `enableInstallTelemetry` only.
-
-They are the reason the auto-run triggers on the first launch, and they are not
-what the agents use afterwards: `configure-agents.sh` overwrites both in the
-volume, plus writes `models.json` and `~/.dsh/settings.yaml`. If you find an
-endpoint value that differs from your env file, the config was written earlier
-and the generator was not re-run.
-
-## Config file locations
-
-`~` is `/home/agent` — the named home volume, not a host directory.
-
-| Path | Written by | Holds |
-|---|---|---|
-| `/opt/yolo/configure-agents.sh` | image (read-only) | generator for all three agents |
-| `/opt/yolo/configure-dsh.sh` | image (read-only) | DeepSeek Harness config only |
-| `~/.config/opencode/opencode.json` | `configure-agents.sh` | provider, model, `permission: allow`, no autoupdate/share |
-| `~/.pi/agent/settings.json` | `configure-agents.sh` | trust, telemetry, default provider/model/thinking level |
-| `~/.pi/agent/models.json` | `configure-agents.sh` | vLLM endpoint, API key (mode 600), model entry |
-| `~/.dsh/settings.yaml` | `configure-dsh.sh` | harness provider, model, context, effort; cloud catalog empty |
-| `~/.bashrc` | image | the auto-run hook above, `umask 077`, flavor env |
-| `~/.gitconfig`, `~/.git-credentials`, `~/.ssh/` | `configure-git.sh` | commit identity and Gitea auth — see [08-GIT-GITEA.md](08-GIT-GITEA.md) |
-
-Verify the wiring from inside the container:
-
-```bash
-jq -e '.permission, .model' ~/.config/opencode/opencode.json
-jq -e '.defaultProjectTrust, .defaultThinkingLevel' ~/.pi/agent/settings.json
-grep -E 'baseURL|^ +- id:|contextWindow' ~/.dsh/settings.yaml
-```
-
-## Where sessions and state persist
-
-| What | Where | Survives container replacement |
-|---|---|---|
-| Agent configs, sessions, harness state | `/home/agent` (named volume) | Yes, as long as the volume name is unchanged |
-| `dsh` profiles and session logs | `/home/agent/.dsh` (`DSH_HOME`) | Yes — same volume |
-| Project files | `/workspace` (the single host mount) | Yes — it is your folder |
-| Running processes, tmux sessions, `/tmp` logs | container / tmpfs | No |
-| Anything written outside `/workspace` and `/home/agent` | read-only rootfs | No — the write fails |
-
-Each flavor has its own volume, so configuring one does not configure the
-others:
-
-| Flavor | Volume | Env file |
-|---|---|---|
-| base | `yolo-agent-base-home-v1` | `config/base.env` |
-| cpp | `yolo-agent-cpp-home-v1` | `config/cpp.env` |
-| reverse | `yolo-agent-reverse-home-v1` | `config/reverse.env` |
-
-`YOLO_HOME_VOLUME` overrides the name — set it explicitly if you want a fresh
-home (agents re-configure on first launch) or want two containers to share one
-configured home. Volume layout is in [01-OVERVIEW.md](01-OVERVIEW.md).
-
-## Removed in 2.0
-
-**goose, aider, prime-agent, and OpenHands are gone and must not be described as
-present.** They were removed because:
-
-- OpenHands never worked reliably in this container.
-- The other three tripled the Python surface — separate venvs and runtimes per
-  agent — for no capability that opencode, pi, and DeepSeek Harness lack.
-
-The 147 MB skills library was dropped as well; agents now author skills in
-`/workspace` instead of loading a curated set from the image.
-
-The build gate enforces the removals: the smoke suite fails if a `goose`,
-`aider`, `prime-agent`, or `openhands` binary reappears, and asserts that
-`/opt/openhands`, `/opt/aider-venv`, and `~/.prime` do not exist. Any document
-that still lists them is stale — see [11-PINS-INTEGRITY.md](11-PINS-INTEGRITY.md)
-for what actually ships.
-
-## Next
-
-- [07-WEB-IDE.md](07-WEB-IDE.md) — code-server, ttyd/tmux, and the Harness UI
-- [09-MODEL-ENDPOINT.md](09-MODEL-ENDPOINT.md) — the endpoint variables in full
-- [12-TROUBLESHOOTING.md](12-TROUBLESHOOTING.md) — when an agent will not start
+The image sets each agent's switches for update checks, telemetry, model-list
+downloads and similar (`/etc/yolo/defaults.env`). `compose.yaml` also maps a few
+known telemetry hosts to `0.0.0.0` so any call that slips through fails at once
+instead of waiting for a timeout.

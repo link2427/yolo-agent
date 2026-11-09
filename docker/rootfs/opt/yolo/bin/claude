@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# yolo wrapper for claude: per-agent settings from ~/.yolo/env/claude.env (written by
+# yolo configure), then the real binary in /opt/agents.
+if [[ -r "$HOME/.yolo/env/claude.env" ]]; then
+  # shellcheck source=/dev/null
+  . "$HOME/.yolo/env/claude.env"
+fi
+exec /opt/agents/bin/claude "$@"

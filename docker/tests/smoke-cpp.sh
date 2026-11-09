@@ -44,9 +44,10 @@ gfortran --version | head -1
 clang --version | head -1
 x86_64-w64-mingw32-gcc --version | head -1
 
-# --- the ccache directory must be writable in the image ---------------------
-test -d "$CCACHE_DIR"
+# --- ccache can create and use its directory in the home volume -------------
+mkdir -p "$CCACHE_DIR"
 test -w "$CCACHE_DIR"
+ccache --show-stats >/dev/null
 
 # --- direct compiler checks: one ELF64, one PE32+ ---------------------------
 work="$(mktemp -d)"
@@ -165,7 +166,7 @@ cmake --build "$work/proj/build-win" --parallel "$(nproc)"
 file -b "$work/proj/build-win/probe.exe" | grep -q 'PE32+ executable (console) x86-64'
 
 # --- the documented helper produces both artifacts --------------------------
-/opt/yolo/cpp-build.sh "$work/proj" both >/tmp/cpp-build.log 2>&1
+cpp-build "$work/proj" both >/tmp/cpp-build.log 2>&1
 test -f "$work/proj/build-linux/probe"
 test -f "$work/proj/build-win/probe.exe"
 
@@ -185,7 +186,7 @@ fi
 # image ships seccomp-toolchain.json (the base profile minus ptrace and the
 # process_vm_* pair), so those names appearing in the BAKED profile would mean
 # the wrong file was copied in. Delegated so the assertion is readable.
-/opt/pyenv/bin/python /tmp/check-seccomp.py
+/opt/pyenv/bin/python /tmp/tests/check-seccomp.py
 
 # --- Fortran: CMake, LAPACK, mixed C++/Fortran, and a Windows cross build ----
 # solve2 solves [[2,1],[1,3]] x = [3,5] through LAPACK, so x = (0.8, 1.4). It is

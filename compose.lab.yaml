@@ -1,0 +1,79 @@
+# yolo-agent 3 — the lab services. Run once, on one machine on the lab network.
+#
+#   mkdir -p ~/yolo/lab && cp compose.lab.yaml ~/yolo/lab/compose.yaml
+#   cp lab.env.example ~/yolo/lab/.env        # set BOT_GITEA_TOKEN at least
+#   cd ~/yolo/lab && docker compose up -d
+#
+# Services:
+#   monitor  gateway + dashboard for SEC09                    LAB_PORT   4000
+#            /        the dashboard (live load, tokens, latency, people, requests)
+#            /v1/*    OpenAI- and Anthropic-compatible proxy to vLLM: point
+#                     VLLM_BASE_URL at http://<this-host>:4000/v1 to get
+#                     per-person usage and model aliases
+#   bot      the always-on agent: reviews pull requests and answers @yolo
+#            mentions in Gitea, runs scheduled jobs from the fleet repo  BOT_PORT 9000
+#
+# Both use the core image; no other images are needed.
+
+name: ${COMPOSE_PROJECT_NAME:-yolo-lab}
+
+x-base: &base
+  image: ${YOLO_IMAGE:-yolo-agent:3.0.0-core}
+  user: "10001:10001"
+  read_only: true
+  cap_drop: [ALL]
+  security_opt:
+    - no-new-privileges:true
+  env_file:
+    - path: .env
+      required: false
+  tmpfs:
+    - /tmp:rw,nosuid,size=${LAB_TMP_SIZE:-4g}
+    - /run:rw,noexec,nosuid,size=64m
+  restart: unless-stopped
+  stop_grace_period: 20s
+
+services:
+  monitor:
+    <<: *base
+    command: ["yolo", "serve", "gateway"]
+    environment:
+      YOLO_SKIP_CONFIGURE: "1"
+      UPSTREAM_URL: ${UPSTREAM_URL:-http://192.168.1.101:8000}
+      UPSTREAM_API_KEY: ${UPSTREAM_API_KEY:-}
+      GPU_URL: ${GPU_URL:-}
+      LAB_DATA: /data
+      LAB_PORT: "4000"
+    volumes:
+      - monitor:/data
+    mem_limit: 1g
+    cpus: 2
+    ports:
+      - ${LAB_BIND:-0.0.0.0}:${LAB_PORT:-4000}:4000
+
+  bot:
+    <<: *base
+    command: ["yolo", "serve", "bot"]
+    environment:
+      YOLO_PERSON: bot
+      # The bot's own traffic goes through the monitor so it shows up there.
+      VLLM_BASE_URL: ${BOT_VLLM_BASE_URL:-http://monitor:4000/v1}
+      GITEA_TOKEN: ${BOT_GITEA_TOKEN:-}
+      BOT_WEBHOOK_SECRET: ${BOT_WEBHOOK_SECRET:-}
+      BOT_PUBLIC_URL: ${BOT_PUBLIC_URL:-}
+      BOT_AGENT: ${BOT_AGENT:-opencode}
+      BOT_MENTION: ${BOT_MENTION:-@yolo}
+      BOT_PORT: "9000"
+    working_dir: /tmp
+    volumes:
+      - bot-home:/home/agent
+    depends_on: [monitor]
+    mem_limit: ${BOT_MEM:-8g}
+    cpus: ${BOT_CPUS:-4}
+    pids_limit: 4096
+    ports:
+      - ${LAB_BIND:-0.0.0.0}:${BOT_PORT:-9000}:9000
+
+volumes:
+  monitor:
+  bot-home:

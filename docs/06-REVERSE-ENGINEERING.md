@@ -1,6 +1,6 @@
 # 06 — Reverse engineering
 
-`yolo-agent-reverse-engineering` is the base image plus a decompilation and
+The `full` tier (`yolo-agent:3.0.0-full`) is the cpp tier plus a decompilation and
 binary-analysis toolchain. It exists because these tools parse **hostile input**
 by design, and that deserves its own container rather than sharing one with your
 normal development work.
@@ -27,7 +27,7 @@ requires Java 21, and Debian 12 ships only OpenJDK 17 — which is why the JDK i
 a pinned tarball rather than an apt package.
 
 All of this shares the **single** Python 3.11 environment at `/opt/pyenv`. The
-reverse packages are layered onto the same venv the base image uses; there is no
+reverse packages are layered onto the same venv the core tier uses; there is no
 second environment. See [04-PYTHON.md](04-PYTHON.md).
 
 ## Workflow: a PyInstaller `.exe`
@@ -172,7 +172,7 @@ ghidra-headless /workspace/ghidra-proj MyProject \
 Notes that save time:
 
 - A full analysis of a large binary takes minutes and a lot of RAM. The compose
-  file defaults to 12 GB; raise `JAVA_OPTS=-Xmx8g` in `config/reverse.env` if
+  file defaults to 12 GB; raise `JAVA_OPTS=-Xmx8g` in the person's `.env` if
   Ghidra runs out of heap.
 - Ghidra's project state defaults to `$HOME/.ghidra`, inside the persistent home
   volume. Set `GHIDRA_USER_DIR=/workspace/.ghidra` to keep it with your project
@@ -219,7 +219,7 @@ the last release with a CPython 3.11 wheel. See
 
 ## The seccomp difference
 
-This image uses `config/seccomp-toolchain.json`, which — unlike the base
+This image uses `config/seccomp.json`, which — unlike the 2.x base
 profile — allows `ptrace`, `process_vm_readv`, and `process_vm_writev`. That is
 required for `gdb` to attach and for debugger-driven unpacking of binaries that
 refuse to run otherwise. All privileged syscalls remain denied. See

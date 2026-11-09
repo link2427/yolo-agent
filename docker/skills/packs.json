@@ -1,0 +1,8 @@
+{
+  "core": ["yolo-airgap", "yolo-gitea", "skill-creator"],
+  "cpp": ["yolo-cpp", "yolo-airgap"],
+  "reverse": ["yolo-reverse", "yolo-airgap"],
+  "web": ["frontend-design", "webapp-testing", "web-artifacts-builder", "theme-factory"],
+  "docs": ["pdf", "docx", "xlsx", "pptx"],
+  "tools": ["mcp-builder", "claude-api", "skill-creator"]
+}

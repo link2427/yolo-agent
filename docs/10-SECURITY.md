@@ -3,8 +3,8 @@
 ## Threat model
 
 The agents are **trusted inside their own container** — they must run arbitrary
-commands to do their job — but must **not** reach the host, other containers, or
-the LAN beyond the model endpoint. Containment is the goal, not sandboxing the
+commands to do their job — but must **not** reach the host or other containers. On the lab network they
+reach SEC09 and Gitea, which they need. Containment is the goal, not sandboxing the
 agent from its own workspace.
 
 This is a deliberate trade: yolo-agent runs with no permission prompts, which is
@@ -20,7 +20,8 @@ not the mounted folder.
 
 Therefore:
 
-- Point `YOLO_WORKSPACE` at a scratch or disposable directory.
+- Each person's `workspace/` folder holds only their work. `YOLO_WORKSPACE` in
+  `.env` can point it elsewhere; never at a folder with irreplaceable data.
 - Do not mount a folder containing credentials, personal documents, or
   irreplaceable data.
 - Keep a backup that the container cannot reach. A read-only bind mount or a
@@ -33,8 +34,7 @@ it, or if the whole directory is removed.
 
 ## Container hardening
 
-Every image's launcher applies the same posture (see `compose*.yaml` and
-`bin/run*.sh|ps1`):
+Every service in `compose.yaml` has the same posture:
 
 | Control | Setting | Effect |
 |---|---|---|
@@ -46,83 +46,51 @@ Every image's launcher applies the same posture (see `compose*.yaml` and
 | Syscalls | seccomp denylist | see below |
 | Docker socket | **not mounted** | the container cannot control Docker or the host |
 | Namespaces | default (no `--privileged`, no host PID/NET) | isolated from host processes and interfaces |
-| Resources | `mem_limit`, `cpus`, `pids_limit`, `ulimit` | limits runaway builds and fork bombs |
+| Resources | `mem_limit`, `cpus`, `pids_limit` | limits runaway builds and fork bombs |
 | Entrypoint | `tini` | reaps zombies; correct signal handling |
 | setuid binaries | none | the build strips the setuid/setgid bits from the whole image |
 
-### The seccomp profiles
+### The seccomp profile
 
-There are two, and the difference between them is small and deliberate:
+`config/seccomp.json` is used by every service in `compose.yaml`, in every
+tier. It denies the privileged syscalls (`mount`, `bpf`, `init_module`,
+`kexec_load`, `settimeofday`, `keyctl` and others) and allows `ptrace`,
+`process_vm_readv` and `process_vm_writev`.
 
-**`config/seccomp-base.json`** — used by `yolo-agent`. Denies 35 syscalls,
-including `ptrace`, `process_vm_readv`, `process_vm_writev`, `mount`, `bpf`,
-`init_module`, `kexec_load`, `settimeofday`, `keyctl`, and friends.
+Why those three are allowed: `gdb` cannot attach to a process without `ptrace`,
+and gcc's link-time optimization uses `process_vm_readv`/`writev`. In 2.x the
+base image denied them; in 3.0 there is one profile, because the tiers are one
+image. A process can inspect other processes of the same user in the same
+container, which anything running as that uid can already affect.
 
-**`config/seccomp-toolchain.json`** — used by `yolo-agent-cpp` and
-`yolo-agent-reverse-engineering`. Identical **except** that `ptrace`,
-`process_vm_readv`, and `process_vm_writev` are *not* denied.
-
-Why the exception exists: `gdb` cannot attach to a process without `ptrace`, and
-gcc's link-time optimization uses `process_vm_readv`/`writev` to pass data
-between compiler processes. Denying them makes the C++ container unable to debug
-and its builds flaky. Every privileged syscall stays denied in both profiles —
-the exception is narrow and specific.
-
-Consequence to be aware of: in the cpp and reverse images, a process inside the
-container can inspect other processes inside the same container. That is already
-true of anything running as the same uid, so it does not widen the boundary —
-but it does mean the toolchain images are slightly less restrictive internally
-than the base image. If you do not need a debugger, use the base image.
-
-Verify the difference yourself:
-
-```bash
-python3 -c "
-import json
-b=json.load(open('config/seccomp-base.json'));t=json.load(open('config/seccomp-toolchain.json'))
-nb={n for s in b['syscalls'] for n in s['names']};nt={n for s in t['syscalls'] for n in s['names']}
-print('allowed only in toolchain:', sorted(nb-nt))"
-```
+The lab services in `compose.lab.yaml` use Docker's default seccomp profile.
 
 ## Secrets
 
-- `VLLM_API_KEY` and Gitea credentials are supplied **only** through the env
-  file and the runtime environment. Nothing secret is baked into an image.
-- Gitea credentials are written to `/home/agent/.git-credentials` with mode
-  `600`; SSH keys to `/home/agent/.ssh` with mode `600`. Both live in the named
-  home volume, never in the repository and never in the image archive.
-- **This is what makes an exported image archive safe to hand around.** Anyone
-  who `docker load`s the archive gets the tooling, not your tokens.
-- `umask 077` is set in the image profile, so files created inside the container
-  are private by default.
-- Do not set `DEEPSEEK_API_KEY` or `OPENAI_API_KEY`: they are unnecessary here
-  (the endpoint is local) and would put cloud models back into the agent
-  pickers.
+- No token is baked into an image or committed to the repository. That is what
+  makes the release archive safe to hand around.
+- A person's Gitea token comes from their `.env` (`GITEA_TOKEN`, mode 600 as
+  written by `install.sh`) or from `yolo login`, which stores it in
+  `~/.yolo/secrets.env` (mode 600) in the home volume. git reads it from
+  `~/.git-credentials` (mode 600).
+- The bot's token is only in the lab `.env` (`BOT_GITEA_TOKEN`).
+- The fleet repo must never contain tokens: everyone with access to it can read
+  it, and every container pulls it.
+- The key agents send to vLLM (`yolo-<person>`) is an identifier for the
+  monitor, not a secret.
 
-The offline bundles deliberately ship `config/*.env.example`, never a populated
-`config/<flavor>.env`.
+## The browser pages
 
-## The browser surfaces
+Start page `:8000`, VS Code `:8080`, Chat `:4096`, Terminal `:7681`, Files
+`:8081`, and the lab monitor `:4000` and bot `:9000`, all listen on every
+address with no login. **Anyone who can reach those ports has that container.**
 
-code-server listens on `0.0.0.0:8080` with `auth: none`. ttyd gives a shell on
-`0.0.0.0:7681`. DeepSeek Harness is relayed to `0.0.0.0:3080`. **Anyone who can
-reach those ports has your container.**
+That is intentional for an air-gapped lab. Mitigations if you need them:
 
-That is intentional for an air-gapped LAN where the alternative is no browser
-access at all, but it is the single most likely way this setup gets compromised
-on a shared network. Mitigations, in order of preference:
-
-1. Bind to host loopback and tunnel:
-   ```bash
-   YOLO_BIND_ADDRESS=127.0.0.1 docker compose up -d
-   ssh -L 8080:127.0.0.1:8080 -L 7681:127.0.0.1:7681 user@yolo-host
-   ```
+1. `YOLO_BIND=127.0.0.1` in a person's `.env` keeps their pages to the machine
+   they run on.
 2. Restrict with the host firewall to specific source addresses.
-3. Run the browser surfaces only when you need them
-   (`docker compose up -d` / `docker compose down`).
-
-There is no built-in authentication. The container's own security controls do
-not protect a port you published to the LAN.
+3. Stop a person's services when not in use (`docker compose down`).
 
 ## Supply chain
 
@@ -134,13 +102,13 @@ not protect a port you published to the LAN.
   unpinned source tree at build time.
 - The Node base image is pinned by manifest digest, and only `/usr/local` is
   copied out of it.
-- The build gate is a per-image smoke suite: a drifted pin fails the build
-  rather than shipping.
+- The build gate is a smoke suite per tier, run with no network: a drifted pin
+  fails the build rather than shipping.
 
 See [11-PINS-INTEGRITY.md](11-PINS-INTEGRITY.md) for the operator-facing version
 of this.
 
-### The reverse-engineering image is different
+### The reverse-engineering tools (full tier) are different
 
 `pycdc`, `jadx`, `Ghidra`, and `radare2` parse **hostile, potentially
 malformed** input by design — that is their job. A parsing bug in any of them is
@@ -149,9 +117,8 @@ a genuine memory-safety risk, and no container setting changes that.
 What contains it: they run as uid 10001, with no capabilities, no network route,
 and only `/workspace` and the home volume writable. A successful exploit gets
 the attacker the workspace and the agent's session state — not the host, not
-your LAN. This is why the decompilation toolchain lives in its own image instead
-of being folded into the base: you only run it when you actually need it, and a
-compromise there does not also hand over your normal development container.
+your lab network. This is why the decompilation tools are only in the `full` tier: give it only
+to people who need it.
 
 Treat files you did not create as untrusted.
 
@@ -176,8 +143,7 @@ Be honest about the limits:
 1. Mount a scratch directory, not your real work.
 2. Keep secrets out of `/workspace`.
 3. Bind browser ports to loopback unless you are certain of the network.
-4. Use a dedicated Gitea identity with a narrowly scoped token for the agent,
-   not your personal account.
+4. Give the bot its own Gitea account with only the access it needs.
 5. Read [../SECURITY.md](../SECURITY.md) and [../PINS.md](../PINS.md) before
    changing pins or exposing ports.
 6. Rebuild and re-export from source rather than pulling an image you cannot

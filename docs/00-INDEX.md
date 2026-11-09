@@ -1,38 +1,21 @@
-# yolo-agent 2.x documentation
+# yolo-agent 3.0 documentation
 
-Three containers, one repository. Each image is independently buildable and
-independently shippable to an air-gapped host.
+| Doc | For | What is in it |
+|---|---|---|
+| [01-OVERVIEW](01-OVERVIEW.md) | everyone | what the container is, the tiers, how the pieces fit |
+| [02-QUICKSTART](02-QUICKSTART.md) | everyone | install a release, make a person's folder, move files in and out |
+| [03-AGENTS](03-AGENTS.md) | everyone | the seven agents, how they are configured, the `yolo` command |
+| [04-PYTHON](04-PYTHON.md) | developers | the one Python 3.11 environment |
+| [05-CPP](05-CPP.md) | developers | C, C++ and Fortran, native and Windows cross builds (cpp, full) |
+| [06-REVERSE-ENGINEERING](06-REVERSE-ENGINEERING.md) | analysts | decompilers and binary analysis (full) |
+| [07-WEB-IDE](07-WEB-IDE.md) | everyone | the browser pages, VS Code, Kilo Code, the extension investigation |
+| [08-GIT-GITEA](08-GIT-GITEA.md) | everyone | `yolo login`, git, pull requests with `yolo-gitea` |
+| [09-MODEL-ENDPOINT](09-MODEL-ENDPOINT.md) | admins | SEC09 settings, model choice, the gateway |
+| [10-SECURITY](10-SECURITY.md) | admins | container hardening and what it does not cover |
+| [11-PINS-INTEGRITY](11-PINS-INTEGRITY.md) | maintainers | how the build pins and tests everything |
+| [12-TROUBLESHOOTING](12-TROUBLESHOOTING.md) | everyone | symptoms and fixes |
+| [13-COMMAND-REFERENCE](13-COMMAND-REFERENCE.md) | everyone | every command in one place |
+| [14-LAB](14-LAB.md) | admins | fleet repo, skills repo, monitor, bot |
 
-| Document | Purpose |
-| --- | --- |
-| [01-OVERVIEW.md](01-OVERVIEW.md) | The three images, what is in each, and the one-mount model |
-| [02-QUICKSTART.md](02-QUICKSTART.md) | Build, load offline, configure, and run |
-| [03-AGENTS.md](03-AGENTS.md) | opencode, pi, and DeepSeek Harness: commands, config, persistence |
-| [04-PYTHON.md](04-PYTHON.md) | The single Python 3.11 environment and its packages |
-| [05-CPP.md](05-CPP.md) | The C/C++ toolchain and 64-bit Windows cross-compilation |
-| [06-REVERSE-ENGINEERING.md](06-REVERSE-ENGINEERING.md) | Decompiling Python `.exe` files and analysing native binaries |
-| [07-WEB-IDE.md](07-WEB-IDE.md) | code-server, ttyd/tmux, and the DeepSeek Harness web UI |
-| [08-GIT-GITEA.md](08-GIT-GITEA.md) | Git identity, token and SSH modes for an air-gapped Gitea |
-| [09-MODEL-ENDPOINT.md](09-MODEL-ENDPOINT.md) | Pointing every agent at a local OpenAI-compatible endpoint |
-| [10-SECURITY.md](10-SECURITY.md) | Containment model, seccomp profiles, and their limits |
-| [11-PINS-INTEGRITY.md](11-PINS-INTEGRITY.md) | Versions, hashes, and the verification model |
-| [12-TROUBLESHOOTING.md](12-TROUBLESHOOTING.md) | Symptom, cause, and fix for common failures |
-| [13-COMMAND-REFERENCE.md](13-COMMAND-REFERENCE.md) | Operator command cheat sheet |
-
-Plans for work that is not built yet live in [plans/](plans/):
-
-| Document | Purpose |
-| --- | --- |
-| [plans/REVAMP.md](plans/REVAMP.md) | 3.0: one image, T3 Code, compose profiles, per-person projects |
-| [plans/AGENT-VERSIONS.md](plans/AGENT-VERSIONS.md) | Bump opencode to 1.19.5 and pi to 1.5.0, add pi sub-agents |
-| [plans/PACKAGE-MIRROR.md](plans/PACKAGE-MIRROR.md) | Offline pip/npm/shadcn mirror: blockers, proxy architecture, sizing |
-
-These docs are copied into every image at `/opt/yolo/docs`, so an agent inside
-the container can read them without the repository. The authoritative copy is
-always the repository, and [PINS.md](../PINS.md) is the file that defines what
-actually ships.
-
-Historical 5.0 documentation is kept separately under `history/v5.0/docs`.
-
-Tagged releases attach one offline ZIP bundle per image containing
-Docker-loadable archives, launchers, configuration templates, and checksums.
+Lab values used throughout: SEC09 (vLLM) at `192.168.1.101:8000`, Gitea at
+`192.168.1.27:3000`, git identity "YOLO Agent" <yoloagent@gmail.com>.

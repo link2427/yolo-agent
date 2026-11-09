@@ -1,75 +1,110 @@
-# yolo-agent base image — hardened runtime, air-gapped LAN by default.
+# yolo-agent 3 — one person's workstation.
 #
-# This file defines ONE container. The other two images have their own compose
-# files so that a single container can be shipped, read, and audited alone:
+# One folder per person, each with this file and a .env:
 #
-#   compose.yaml           yolo-agent (this file)
-#   compose.cpp.yaml       yolo-agent-cpp
-#   compose.reverse.yaml   yolo-agent-reverse-engineering
+#   ~/yolo/alice/compose.yaml
+#   ~/yolo/alice/.env            ports, image tier, GITEA_TOKEN, overrides
+#   ~/yolo/alice/workspace/      the person's files (created on first start)
 #
-# Because `docker compose -f compose.cpp.yaml up` still parses the other
-# services if you list them, each file is deliberately self-contained: it
-# carries its own anchor, its own volumes, and its own env file.
+#   cd ~/yolo/alice && docker compose up -d
 #
-# ${...} values below are substituted by Compose on the HOST, so they come from
-# your shell or a .env file in this directory — NOT from config/base.env, which
-# is only passed into the container as an env_file:
+# The project name is the folder name, so containers, networks and the home
+# volume are per person automatically. Keep the folder on the WSL disk
+# (~/...), never under /mnt/c: the Windows mount is many times slower.
 #
-#   YOLO_BIND_ADDRESS=127.0.0.1 docker compose up -d
+# Services (host ports set in .env):
+#   home   start page with buttons to everything below     YOLO_PORT_HOME  8000
+#   code   VS Code (code-server) + agent chat panels        YOLO_PORT_CODE  8080
+#   chat   opencode web: the full agent in the browser      YOLO_PORT_CHAT  4096
+#   term   browser terminal (tmux; survives closed tabs)    YOLO_PORT_TERM  7681
+#   files  upload, download and zip files in /workspace     YOLO_PORT_FILES 8081
+#   shell  interactive shell: docker compose run --rm shell
+#
+# All services run the same image and share /workspace and the home volume.
 
-x-yolo-agent: &yolo-agent
-  image: ${YOLO_IMAGE:-yolo-agent:2.0.0}
+name: ${COMPOSE_PROJECT_NAME:-yolo}
+
+x-agent: &agent
+  image: ${YOLO_IMAGE:-yolo-agent:3.0.0-full}
   user: "10001:10001"
   read_only: true
-  cap_drop:
-    - ALL
+  init: false
+  cap_drop: [ALL]
   security_opt:
     - no-new-privileges:true
-    - seccomp=./config/seccomp-base.json
+    - seccomp=${YOLO_SECCOMP:-./config/seccomp.json}
   env_file:
-    - path: ./config/base.env
+    - path: .env
       required: false
   working_dir: /workspace
   volumes:
-    - ${YOLO_WORKSPACE:-.}:/workspace
-    - yolo-agent-home:/home/agent
+    - ${YOLO_WORKSPACE:-./workspace}:/workspace
+    - home:/home/agent
   tmpfs:
-    - /tmp:rw,nosuid,size=2g
+    - /tmp:rw,nosuid,size=${YOLO_TMP_SIZE:-4g}
     - /run:rw,noexec,nosuid,size=64m
-    - /dev/shm:rw,noexec,nosuid,size=256m
-  mem_limit: ${YOLO_MEM:-8g}
-  cpus: ${YOLO_CPUS:-4}
-  pids_limit: 2048
-  stop_grace_period: 30s
+    - /dev/shm:rw,noexec,nosuid,size=512m
+  extra_hosts:
+    # Belt and braces for tools that try to phone home: fail instantly instead
+    # of waiting for DNS timeouts on the air-gapped network.
+    - "app.opencode.ai:0.0.0.0"
+    - "models.dev:0.0.0.0"
+    - "statsig.anthropic.com:0.0.0.0"
+    - "sentry.io:0.0.0.0"
+  mem_limit: ${YOLO_MEM:-12g}
+  cpus: ${YOLO_CPUS:-6}
+  pids_limit: 4096
+  restart: unless-stopped
+  stop_grace_period: 20s
 
 services:
-  # Interactive shell only. `docker compose run --rm agent` enables this profile
-  # automatically; `docker compose up -d` does not start it.
-  agent:
-    <<: *yolo-agent
+  home:
+    <<: *agent
+    command: ["yolo", "serve", "home"]
+    environment:
+      YOLO_PORT_HOME: ${YOLO_PORT_HOME:-8000}
+      YOLO_PORT_CODE: ${YOLO_PORT_CODE:-8080}
+      YOLO_PORT_CHAT: ${YOLO_PORT_CHAT:-4096}
+      YOLO_PORT_TERM: ${YOLO_PORT_TERM:-7681}
+      YOLO_PORT_FILES: ${YOLO_PORT_FILES:-8081}
+    mem_limit: 512m
+    cpus: 1
+    ports:
+      - ${YOLO_BIND:-0.0.0.0}:${YOLO_PORT_HOME:-8000}:8000
+
+  code:
+    <<: *agent
+    command: ["yolo", "serve", "code"]
+    ports:
+      - ${YOLO_BIND:-0.0.0.0}:${YOLO_PORT_CODE:-8080}:8080
+
+  chat:
+    <<: *agent
+    command: ["yolo", "serve", "chat"]
+    ports:
+      - ${YOLO_BIND:-0.0.0.0}:${YOLO_PORT_CHAT:-4096}:4096
+
+  term:
+    <<: *agent
+    command: ["yolo", "serve", "term"]
+    ports:
+      - ${YOLO_BIND:-0.0.0.0}:${YOLO_PORT_TERM:-7681}:7681
+
+  files:
+    <<: *agent
+    command: ["yolo", "serve", "files"]
+    mem_limit: 1g
+    cpus: 2
+    ports:
+      - ${YOLO_BIND:-0.0.0.0}:${YOLO_PORT_FILES:-8081}:8081
+
+  shell:
+    <<: *agent
     profiles: [cli]
+    restart: "no"
     stdin_open: true
     tty: true
-    command: /bin/bash -l
-
-  # Persistent browser stack: code-server (:8080) + ttyd/tmux terminal (:7681).
-  server:
-    <<: *yolo-agent
-    restart: unless-stopped
-    command: /opt/yolo/server-start.sh
-    ports:
-      - ${YOLO_BIND_ADDRESS:-0.0.0.0}:${YOLO_CODE_PORT:-8080}:8080
-      - ${YOLO_BIND_ADDRESS:-0.0.0.0}:${YOLO_TERMINAL_PORT:-7681}:7681
-
-  # DeepSeek Harness web UI. Its own service because it is the one surface that
-  # benefits from being restarted independently of the IDE.
-  deepseek:
-    <<: *yolo-agent
-    restart: unless-stopped
-    command: /opt/yolo/deepseek-web-start.sh
-    ports:
-      - ${YOLO_BIND_ADDRESS:-0.0.0.0}:${YOLO_DSH_PORT:-3080}:3081
+    command: ["/bin/bash", "-l"]
 
 volumes:
-  yolo-agent-home:
-    name: ${YOLO_HOME_VOLUME:-yolo-agent-base-home-v1}
+  home:

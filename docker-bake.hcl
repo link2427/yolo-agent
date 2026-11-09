@@ -1,20 +1,19 @@
-# yolo-agent 2.x build matrix — three images, one repo.
+# yolo-agent 3 build matrix: one Dockerfile, three tiers of one image.
 #
-#   docker buildx bake              # build + smoke-test every image
-#   docker buildx bake images       # build the three shippable images
-#   docker buildx bake base         # one image (also: cpp, reverse)
-#   docker buildx bake tests        # smoke suite only (same as the default)
+#   docker buildx bake              build every tier through its smoke suite
+#   docker buildx bake images       the three shippable tiers
+#   docker buildx bake core         one tier (also: cpp, full)
 #
-# Each image is self-contained: it materializes a complete filesystem, so a
-# `docker load` of any single archive is enough to run that container offline.
-# There is no separately published base image to chase.
+# Tags: yolo-agent:<version>-core | -cpp | -full. The tiers share their lower
+# layers and an identical "apps" layer, so `docker save` of all three together
+# is barely larger than the full tier alone.
 
 variable "REGISTRY" {
   default = "ghcr.io/link2427"
 }
 
 variable "VERSION" {
-  default = "2.0.0"
+  default = "3.0.0"
 }
 
 variable "VCS_REF" {
@@ -22,91 +21,63 @@ variable "VCS_REF" {
 }
 
 target "_common" {
-  context = "."
-  platforms = ["linux/amd64"]
+  context    = "."
+  dockerfile = "Dockerfile"
+  platforms  = ["linux/amd64"]
   args = {
     VERSION = VERSION
     VCS_REF = VCS_REF
   }
-  # Declared empty so CI can enable the GitHub Actions cache with
-  # `--set '<target>.cache-from=...'` / `--set '<target>.cache-to=...'`
-  # without touching this file.
+  # Declared empty so CI can enable a cache with --set without editing this file.
   cache-from = []
-  cache-to = []
+  cache-to   = []
 }
 
-# --- yolo-agent (base) ------------------------------------------------------
-target "base" {
+target "core" {
   inherits = ["_common"]
-  dockerfile = "Dockerfile"
-  target = "runtime"
-  tags = [
-    "${REGISTRY}/yolo-agent:${VERSION}",
-    "yolo-agent:${VERSION}",
-  ]
+  target   = "core"
+  tags     = ["${REGISTRY}/yolo-agent:${VERSION}-core", "yolo-agent:${VERSION}-core"]
 }
 
-target "base-test" {
-  inherits = ["_common"]
-  dockerfile = "Dockerfile"
-  target = "test"
-  args = {
-    VERSION = VERSION
-    VCS_REF = VCS_REF
-  }
-}
-
-# --- yolo-agent-cpp ---------------------------------------------------------
 target "cpp" {
   inherits = ["_common"]
-  dockerfile = "Dockerfile.cpp"
-  target = "runtime"
+  target   = "cpp"
+  tags     = ["${REGISTRY}/yolo-agent:${VERSION}-cpp", "yolo-agent:${VERSION}-cpp"]
+}
+
+target "full" {
+  inherits = ["_common"]
+  target   = "full"
   tags = [
-    "${REGISTRY}/yolo-agent-cpp:${VERSION}",
-    "yolo-agent-cpp:${VERSION}",
+    "${REGISTRY}/yolo-agent:${VERSION}-full",
+    "${REGISTRY}/yolo-agent:${VERSION}",
+    "yolo-agent:${VERSION}-full",
   ]
+}
+
+target "core-test" {
+  inherits = ["_common"]
+  target   = "core-test"
 }
 
 target "cpp-test" {
   inherits = ["_common"]
-  dockerfile = "Dockerfile.cpp"
-  target = "test"
-  args = {
-    VERSION = VERSION
-    VCS_REF = VCS_REF
-  }
+  target   = "cpp-test"
 }
 
-# --- yolo-agent-reverse-engineering -----------------------------------------
-target "reverse" {
+target "full-test" {
   inherits = ["_common"]
-  dockerfile = "Dockerfile.reverse"
-  target = "runtime"
-  tags = [
-    "${REGISTRY}/yolo-agent-reverse-engineering:${VERSION}",
-    "yolo-agent-reverse-engineering:${VERSION}",
-  ]
+  target   = "full-test"
 }
 
-target "reverse-test" {
-  inherits = ["_common"]
-  dockerfile = "Dockerfile.reverse"
-  target = "test"
-  args = {
-    VERSION = VERSION
-    VCS_REF = VCS_REF
-  }
-}
-
-# `bake` with no arguments runs everything through its smoke suite.
 group "default" {
-  targets = ["base-test", "cpp-test", "reverse-test"]
+  targets = ["core-test", "cpp-test", "full-test"]
 }
 
 group "images" {
-  targets = ["base", "cpp", "reverse"]
+  targets = ["core", "cpp", "full"]
 }
 
 group "tests" {
-  targets = ["base-test", "cpp-test", "reverse-test"]
+  targets = ["core-test", "cpp-test", "full-test"]
 }

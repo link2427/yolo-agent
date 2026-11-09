@@ -1,121 +1,97 @@
 # 01 — Overview
 
-yolo-agent runs unrestricted autonomous coding agents inside a sealed
-Linux/amd64 container on a Windows host that has **no internet access**. It is
-built to be exported as a Docker image archive, carried across the air gap, and
-loaded — after which it never needs the network again.
+yolo-agent is a container that gives one person a complete agent workstation on
+an air-gapped network: coding agents, VS Code in the browser, a browser
+terminal and a file manager. The agents use the lab's vLLM server (SEC09) and
+Gitea. Nothing needs the internet once the images are loaded.
 
-## Three images
+## Tiers
 
-The repository builds three containers from shared fragments. They are not
-layered on a published base image: each one materializes a complete filesystem,
-so loading a single archive is enough to run that container offline.
+One image, built from one `Dockerfile`, in three tiers. Each tier contains the
+one before it.
 
-| Image | Dockerfile | Purpose | Adds over the base |
-|---|---|---|---|
-| `yolo-agent` | `Dockerfile` | general development | — (this *is* the base) |
-| `yolo-agent-cpp` | `Dockerfile.cpp` | C and C++ projects | offline compilers, cmake, and a mingw-w64 Windows cross toolchain |
-| `yolo-agent-reverse-engineering` | `Dockerfile.reverse` | decompilation and binary analysis | pycdc, pyinstxtractor-ng, pydumpck, uncompyle6, jadx, Ghidra, radare2 |
-
-All three contain the same three agents (opencode, pi, DeepSeek Harness), the
-same browser IDE (code-server + ttyd/tmux), and the same Python 3.11 environment
-shape. The difference is the toolchain on top.
-
-## What is in every image
-
-- **Agents** — opencode 1.18.30, pi 0.85.1, DeepSeek Harness 0.1.5-rc.1, all
-  pre-wired for YOLO mode against your local model endpoint.
-- **Browser IDE** — code-server 4.137.0 with 19 pre-installed extensions (21
-  entries once VS Code's dependency closure is included), and
-  ttyd 1.7.7 wrapping a persistent tmux session.
-- **Python** — exactly one environment at `/opt/pyenv`, Python 3.11, ~45
-  packages for general development.
-- **Node 22** — for the agent CLIs and the DeepSeek Harness plugin graph.
-
-## The one-mount model
-
-The container is given exactly one host folder:
-
-```
-host                              container
-──────────────────────────────    ──────────────────────────────────────────
-C:\work\my-project           →    /workspace      (rw, the only host mount)
-(named docker volume)        →    /home/agent     (rw, agent state + secrets)
-                                  /opt/...        (ro, image content)
-                                  /tmp, /run      (tmpfs)
-```
-
-`/workspace` is the project mount. `/home/agent` is a **named volume**, not a
-host path, so agent sessions, SSH keys, and git credentials persist across
-container replacement without ever appearing in a host directory you might
-sync or share.
-
-The three flavors use separate volumes, so configuring one does not configure
-the others:
-
-| Flavor | Volume | Env file |
+| Tag | For | Adds |
 |---|---|---|
-| base | `yolo-agent-base-home-v1` | `config/base.env` |
-| cpp | `yolo-agent-cpp-home-v1` | `config/cpp.env` |
-| reverse | `yolo-agent-reverse-home-v1` | `config/reverse.env` |
+| `yolo-agent:3.0.0-core` | most work | seven agents, the web pages, Python 3.11, Node 22, git, common CLI tools |
+| `yolo-agent:3.0.0-cpp` | C, C++, Fortran | gcc/g++/gfortran 12, clang 14, cmake, ninja, gdb, valgrind, mingw-w64 cross compilers for 64-bit Windows |
+| `yolo-agent:3.0.0-full` | reverse engineering | Ghidra headless, jadx, radare2, pycdc, pyinstxtractor-ng, pydumpck, binwalk, yara, Java 21 |
 
-## Containment
+## One person, one folder
 
-Every container runs with:
+```
+~/yolo/alice/
+  compose.yaml        the services (same file for everyone)
+  .env                tier, ports, person name, Gitea token, overrides
+  config/seccomp.json
+  workspace/          alice's files, mounted at /workspace
+```
 
-- uid/gid **10001**, unprivileged, with a read-only root filesystem;
-- **all Linux capabilities dropped** and `no-new-privileges`;
-- a **seccomp denylist** (`config/seccomp-base.json` for the base image,
-  `config/seccomp-toolchain.json` for cpp/reverse, which additionally allows
-  `ptrace` so debuggers work);
-- no Docker socket, no host PID/network namespace, no other mounts;
-- memory, CPU, and PID limits.
+`docker compose up -d` in that folder starts five services from the same image.
+They share `/workspace` and a home volume (`alice_home`, mounted at
+`/home/agent`) that holds settings, agent history and the Gitea token.
 
-Inside that boundary the agents are deliberately unrestricted — no permission
-prompts, ever. That is what "yolo" means here, and it is why `/workspace` should
-point at a scratch directory rather than anything irreplaceable. See
-[10-SECURITY.md](10-SECURITY.md).
+| Service | Port | What |
+|---|---|---|
+| home | 8000 | start page |
+| code | 8080 | VS Code (code-server) with the Kilo Code panel |
+| chat | 4096 | opencode web: an agent in the browser |
+| term | 7681 | browser terminal (tmux) |
+| files | 8081 | File Browser for `/workspace` |
+| shell | — | `docker compose run --rm shell` for a one-off shell |
 
-## Air-gap design rules
+## What happens at start
 
-Three rules shape almost every decision in this repository:
+Every service starts through `/opt/yolo/bin/entrypoint`, which runs
+`yolo configure`:
 
-1. **Fetch at build time, never at run time.** Agent binaries, VS Code
-   extensions, Python wheels, the C++ toolchain, and Ghidra are all downloaded
-   during `docker build` and baked in. The runtime container has no package
-   manager that can reach anything.
-2. **Pin everything.** The image cannot be repaired after export, so a hash
-   mismatch must fail the build rather than silently ship something else. See
-   [11-PINS-INTEGRITY.md](11-PINS-INTEGRITY.md).
-3. **Self-contained images.** No runtime dependency on another image from a
-   registry the offline host cannot reach.
+1. Load settings: `/etc/yolo/defaults.env`, then the fleet repo, then the
+   person's file in the fleet repo, then `~/.yolo/secrets.env`, then the
+   container's environment (the `.env`). Later wins.
+2. Pull the fleet and skills repos from Gitea, if there is a token.
+3. Ask SEC09 which models it serves (`/v1/models`) and pick the model.
+4. Write each agent's config, the Kilo Code config, VS Code settings, git
+   settings and the agent instructions (`~/.yolo/AGENTS.md`).
+5. Link the enabled skills into each agent's skills folder.
+
+If SEC09 is down, the last known model list is used. Configure never stops a
+service from starting.
+
+## Lab services
+
+`compose.lab.yaml` runs once per lab, from the core tier:
+
+- **monitor** (`:4000`) — a proxy for `/v1/*` and a dashboard for SEC09.
+- **bot** (`:9000`) — the always-on agent: pull request reviews, `@yolo`
+  mentions, scheduled jobs.
+
+See [14-LAB.md](14-LAB.md).
+
+## Hardening
+
+Every person's container runs as uid 10001 with a read-only root filesystem,
+no capabilities, `no-new-privileges`, a seccomp profile and resource limits.
+The pages have no login. See [10-SECURITY.md](10-SECURITY.md).
 
 ## Repository layout
 
-```text
-Dockerfile                 yolo-agent (base)
-Dockerfile.cpp             yolo-agent-cpp
-Dockerfile.reverse         yolo-agent-reverse-engineering
-docker-bake.hcl            build matrix for all three images
-compose.yaml               base container
-compose.cpp.yaml           C/C++ container
-compose.reverse.yaml       reverse-engineering container
-config/                    seccomp profiles and env templates
-docker/install/            pinned installers shared by all three images
-docker/requirements-*.txt  the Python 3.11 package sets
-docker/rootfs/             files copied into every image
-docker/tests/              per-image smoke suites (the build gate)
-bin/                       Linux and Windows host launchers
-scripts/                   offline bundle packaging
-history/                   recovered v5/v6 provenance
+```
+Dockerfile                  all three tiers and their test stages
+docker-bake.hcl             build matrix (core, cpp, full and *-test)
+compose.yaml                one person's services
+compose.lab.yaml            monitor and bot
+.env.example, lab.env.example
+config/seccomp.json
+docker/install/             build-time installers
+docker/rootfs/              files copied into the image (/opt/yolo, /etc/yolo, home)
+docker/skills/              house skills and skill packs
+docker/tests/               smoke tests and the stub model server
+scripts/install.sh          host helper: load, new, lab, upgrade
+scripts/package-offline.sh  builds the release files
+tools/gpu-exporter.py       optional, runs on SEC09
 ```
 
-## Version lineage
+## History
 
-- `archive-yolo-dev-6.0-recovered` preserves the exact recovered source as
-  imported history, outside the semantic-version sequence.
-- `history/v5.0/` is a partial snapshot: the 5.0 Docker build context did not
-  survive, so its original image checksum and build log are retained instead.
-- `v1.0.0` began the reorganized, source-first release line.
-- **`v2.0.0` is the modular overhaul**: three images, three agents, one Python
-  environment, and OpenHands/prime-agent/goose/aider removed.
+- 2.0.0 split the old monolith into three images with three agents.
+- 3.0.0 made them tiers of one image, moved to compose only, added five agents,
+  the web pages, the fleet repo, skills, the monitor and the bot.
