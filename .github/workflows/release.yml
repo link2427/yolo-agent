@@ -70,7 +70,7 @@ jobs:
 
       - name: Package the offline release
         run: |
-          sudo apt-get install -y --no-install-recommends zstd zip >/dev/null
+          sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends zstd zip >/dev/null
           ./scripts/package-offline.sh "${{ steps.v.outputs.version }}" "${{ steps.v.outputs.prefix }}" -- dist
           df -h /
 

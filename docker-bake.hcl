@@ -4,7 +4,10 @@
 #   docker buildx bake images       the three shippable tiers
 #   docker buildx bake core         one tier (also: cpp, full)
 #
-# Tags: yolo-agent:<version>-core | -cpp | -full. The tiers share their lower
+# Tags: ${REGISTRY}/yolo-agent:<version>-core | -cpp | -full (registry names
+# only, so a registry push never goes anywhere else; scripts/package-offline.sh
+# retags them to the plain yolo-agent:<version>-<tier> that compose.yaml uses).
+# The tiers share their lower
 # layers and an identical "apps" layer, so `docker save` of all three together
 # is barely larger than the full tier alone.
 
@@ -36,13 +39,13 @@ target "_common" {
 target "core" {
   inherits = ["_common"]
   target   = "core"
-  tags     = ["${REGISTRY}/yolo-agent:${VERSION}-core", "yolo-agent:${VERSION}-core"]
+  tags     = ["${REGISTRY}/yolo-agent:${VERSION}-core"]
 }
 
 target "cpp" {
   inherits = ["_common"]
   target   = "cpp"
-  tags     = ["${REGISTRY}/yolo-agent:${VERSION}-cpp", "yolo-agent:${VERSION}-cpp"]
+  tags     = ["${REGISTRY}/yolo-agent:${VERSION}-cpp"]
 }
 
 target "full" {
@@ -51,7 +54,6 @@ target "full" {
   tags = [
     "${REGISTRY}/yolo-agent:${VERSION}-full",
     "${REGISTRY}/yolo-agent:${VERSION}",
-    "yolo-agent:${VERSION}-full",
   ]
 }
 

@@ -241,7 +241,7 @@ image for anything you did not write yourself.
 ## Verifying the toolchain yourself
 
 The image smoke suite (`docker/tests/smoke-reverse.sh`, run by
-`docker buildx bake reverse-test`) builds a **real** PyInstaller onefile archive
+`docker buildx bake full-test`) builds a **real** PyInstaller onefile archive
 inside the image, extracts it with `pyinstxtractor-ng`, disassembles the
 extracted bytecode with `pycdas`, round-trips a compiled `.pyc`, parses an ELF
 with LIEF, and starts Ghidra's launcher to confirm it resolves Java 21.

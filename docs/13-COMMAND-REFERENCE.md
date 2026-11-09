@@ -177,7 +177,7 @@ raise `JAVA_OPTS` when the default heap is too small.
 
 ```bash
 docker buildx bake                  # core-test, cpp-test, full-test
-docker buildx bake images           # yolo-agent:<v>-core|cpp|full
+docker buildx bake images           # ghcr.io/link2427/yolo-agent:<v>-core|cpp|full
 docker buildx bake core             # one tier
 ./scripts/package-offline.sh 3.0.0 ghcr.io/link2427/yolo-agent -- dist
 ```
