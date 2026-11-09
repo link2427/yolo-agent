@@ -13,7 +13,7 @@ re-verified or repaired after export — so the pins *are* the supply chain.
 | Image | Dockerfile | Adds |
 |-------|-----------|------|
 | `yolo-agent` | `Dockerfile` | base: agents, browser IDE, Python 3.11 |
-| `yolo-agent-cpp` | `Dockerfile.cpp` | C/C++ toolchain + mingw-w64 Windows cross compiler |
+| `yolo-agent-cpp` | `Dockerfile.cpp` | C/C++/Fortran toolchain + mingw-w64 Windows cross compiler |
 | `yolo-agent-reverse-engineering` | `Dockerfile.reverse` | decompilers, JVM tools, binary analysis |
 
 ## Agents
@@ -58,8 +58,8 @@ in **every** image so IntelliSense works in the base container too; only
 | Debian base | 12 (bookworm), slim | `debian:bookworm-slim` | distro-managed |
 | Python | **3.11** | Debian bookworm `python3` | distro-managed; the project targets exactly one interpreter version |
 | Node | 22 | `node:22-bookworm-slim` | linux/amd64 manifest digest pinned: `sha256:83f487e0…7767a7e5`; only `/usr/local` is copied forward |
-| cmake / ninja / gcc / g++ / clang / lld / lldb / gdb / make / pkg-config / ccache / nasm / valgrind / lcov / gcovr / autotools | Debian 12 | apt | distro-managed |
-| mingw-w64 cross toolchain | 10.0.0-3 (`gcc-mingw-w64-x86-64` 12.2.0) | apt | distro-managed; Debian's POSIX threading model is the default |
+| cmake / ninja / gcc / g++ / gfortran / liblapack / libblas / clang / lld / lldb / gdb / make / pkg-config / ccache / nasm / valgrind / lcov / gcovr / autotools | Debian 12 | apt | distro-managed |
+| mingw-w64 cross toolchain | 10.0.0-3 (`gcc`/`g++`/`gfortran-mingw-w64-x86-64` 12.2.0) | apt | distro-managed; Debian's POSIX threading model is the default |
 | Temurin JDK | 21.0.12.1+1 | Adoptium GitHub release | sha256 `ce79869e13…faee94`; required because Ghidra ≥ 12 needs Java 21 and Debian 12 ships only OpenJDK 17 |
 
 The mingw-w64 cross compiler is pinned to the **POSIX threading variant** via

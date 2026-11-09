@@ -8,8 +8,8 @@ executable on a machine that has no internet**.
 
 | Kind | Tools |
 |---|---|
-| Native compilers | `gcc`, `g++`, `clang` / `clang++` **14**, `clangd` 14, `lld`, `ld.lld` |
-| Cross compiler | `x86_64-w64-mingw32-gcc`, `-g++`, `-ar`, `-ranlib`, `-strip`, `-windres` (mingw-w64 10.0.0, GCC 12.2) |
+| Native compilers | `gcc`, `g++`, `gfortran` (GCC 12, with reference LAPACK/BLAS), `clang` / `clang++` **14**, `clangd` 14, `lld`, `ld.lld` |
+| Cross compiler | `x86_64-w64-mingw32-gcc`, `-g++`, `-gfortran`, `-ar`, `-ranlib`, `-strip`, `-windres` (mingw-w64 10.0.0, GCC 12.2) |
 | Build systems | `cmake` 3.25, `ninja` 1.11, `make`, autotools (`autoconf`, `automake`, `libtool`, `bison`, `flex`, `gettext`, `gperf`, `texinfo`) |
 | Build helpers | `pkg-config`, `ccache` 4.8, `nasm` |
 | Debug / analysis | `gdb` 13, `lldb` 14, `strace`, `ltrace`, `valgrind`, `binutils` |
@@ -263,3 +263,25 @@ x86_64-w64-mingw32-objdump -p /tmp/t.exe | grep 'DLL Name'
 
 If `file` says `PE32+ executable (console) x86-64` and no `DLL Name:` line
 mentions `libstdc++`, the cross toolchain is working.
+
+## Fortran
+
+`gfortran` (GCC 12) is installed for native builds, together with reference
+LAPACK and BLAS (`-llapack -lblas`, or `find_package(LAPACK)` in CMake). The
+mingw-w64 Fortran frontend, `x86_64-w64-mingw32-gfortran`, cross-compiles for
+64-bit Windows and uses the same POSIX threading variant as the C/C++ cross
+compiler.
+
+```bash
+gfortran -O2 prog.f90 -o prog -llapack -lblas
+x86_64-w64-mingw32-gfortran -O2 prog.f90 -o prog.exe -static
+```
+
+Both CMake toolchain files set `CMAKE_Fortran_COMPILER`, so a project that
+declares `LANGUAGES ... Fortran` works with either. Debian 12's clang has no
+Fortran frontend, so the clang toolchain file uses gfortran for Fortran sources
+and clang for C/C++. `-static` (the mingw toolchain-file default) also links the
+Fortran runtime statically, so the `.exe` needs no `libgfortran` DLL.
+
+LAPACK and BLAS are native only. A Windows build that needs them must build
+them from source with the cross compiler.

@@ -38,7 +38,7 @@ FROM ${DEBIAN_IMAGE} AS base
 ARG VERSION
 ARG VCS_REF
 LABEL org.opencontainers.image.title="yolo-agent-cpp" \
-      org.opencontainers.image.description="yolo-agent plus an offline C/C++ toolchain and a mingw-w64 cross compiler" \
+      org.opencontainers.image.description="yolo-agent plus an offline C/C++/Fortran toolchain and a mingw-w64 cross compiler" \
       org.opencontainers.image.source="https://github.com/link2427/yolo-agent"
 ENV DEBIAN_FRONTEND=noninteractive
 COPY docker/install/system-deps.sh /tmp/system-deps.sh

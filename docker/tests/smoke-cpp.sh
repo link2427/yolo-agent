@@ -12,6 +12,7 @@ set -euxo pipefail
 # --- compilers and build tools are present ----------------------------------
 for tool in gcc g++ clang clang++ clangd lld ld.lld lldb gdb make ninja cmake \
             pkg-config ccache lcov gcovr nasm strace ltrace valgrind \
+            gfortran x86_64-w64-mingw32-gfortran \
             x86_64-w64-mingw32-gcc x86_64-w64-mingw32-g++ \
             x86_64-w64-mingw32-ar x86_64-w64-mingw32-windres; do
   command -v "$tool" >/dev/null
@@ -28,9 +29,18 @@ case "$x86_64_w64_gpp" in
      exit 1 ;;
 esac
 
+x86_64_w64_gfortran="$(readlink -f "$(command -v x86_64-w64-mingw32-gfortran)")"
+case "$x86_64_w64_gfortran" in
+  *-posix) echo ">> cross Fortran is the posix variant: $x86_64_w64_gfortran" ;;
+  *) echo "ERROR: x86_64-w64-mingw32-gfortran resolves to $x86_64_w64_gfortran," >&2
+     echo "       expected the -posix variant to match the C/C++ cross compiler" >&2
+     exit 1 ;;
+esac
+
 cmake --version | head -1
 ninja --version
 gcc --version | head -1
+gfortran --version | head -1
 clang --version | head -1
 x86_64-w64-mingw32-gcc --version | head -1
 
@@ -176,5 +186,86 @@ fi
 # process_vm_* pair), so those names appearing in the BAKED profile would mean
 # the wrong file was copied in. Delegated so the assertion is readable.
 /opt/pyenv/bin/python /tmp/check-seccomp.py
+
+# --- Fortran: CMake, LAPACK, mixed C++/Fortran, and a Windows cross build ----
+# solve2 solves [[2,1],[1,3]] x = [3,5] through LAPACK, so x = (0.8, 1.4). It is
+# exported with bind(C) so the C++ caller needs no name-mangling guesses.
+mkdir -p "$work/fproj"
+cat > "$work/fproj/solve.f90" <<'EOF'
+subroutine solve2(x) bind(C, name="solve2")
+  use iso_c_binding, only: c_double
+  implicit none
+  real(c_double), intent(out) :: x(2)
+  double precision :: a(2,2)
+  integer :: ipiv(2), info
+  a = reshape([2d0, 1d0, 1d0, 3d0], [2,2])
+  x = [3d0, 5d0]
+  call dgesv(2, 1, a, 2, ipiv, x, 2, info)
+end subroutine solve2
+EOF
+cat > "$work/fproj/main.f90" <<'EOF'
+program main
+  use iso_c_binding, only: c_double
+  implicit none
+  interface
+    subroutine solve2(x) bind(C, name="solve2")
+      import :: c_double
+      real(c_double), intent(out) :: x(2)
+    end subroutine solve2
+  end interface
+  real(c_double) :: x(2)
+  call solve2(x)
+  print '(a,2f8.4)', 'x =', x
+end program main
+EOF
+cat > "$work/fproj/mixed.cpp" <<'EOF'
+#include <cstdio>
+extern "C" void solve2(double* x);
+int main() { double x[2]; solve2(x); std::printf("mixed %.4f %.4f\n", x[0], x[1]); }
+EOF
+cat > "$work/fproj/CMakeLists.txt" <<'EOF'
+cmake_minimum_required(VERSION 3.20)
+project(fprobe LANGUAGES CXX Fortran)
+find_package(LAPACK REQUIRED)
+add_executable(fprobe main.f90 solve.f90)
+target_link_libraries(fprobe PRIVATE LAPACK::LAPACK)
+# C++ main + Fortran object: CMake links with the C++ driver and adds the
+# Fortran runtime libraries itself.
+add_executable(mixed mixed.cpp solve.f90)
+target_link_libraries(mixed PRIVATE LAPACK::LAPACK)
+EOF
+cmake -S "$work/fproj" -B "$work/fproj/build" -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build "$work/fproj/build" --parallel "$(nproc)"
+"$work/fproj/build/fprobe" | grep -q '0\.8000 *1\.4000'
+"$work/fproj/build/mixed" | grep -q 'mixed 0.8000 1.4000'
+
+mkdir -p "$work/fhello"
+cat > "$work/fhello/hello.f90" <<'EOF'
+program hello
+  print *, 'yolo agent fortran'
+end program hello
+EOF
+cat > "$work/fhello/CMakeLists.txt" <<'EOF'
+cmake_minimum_required(VERSION 3.20)
+project(fh LANGUAGES Fortran)
+add_executable(fh hello.f90)
+EOF
+
+# Native through the clang toolchain file (gfortran + lld on the Fortran side).
+cmake -S "$work/fhello" -B "$work/fhello/build-linux" -G Ninja \
+  -DCMAKE_TOOLCHAIN_FILE=/opt/yolo/cmake-toolchains/linux-x86_64-clang.cmake
+cmake --build "$work/fhello/build-linux"
+"$work/fhello/build-linux/fh" | grep -q 'yolo agent fortran'
+
+# Windows: a static PE with no Fortran runtime DLL dependency.
+cmake -S "$work/fhello" -B "$work/fhello/build-win" -G Ninja \
+  -DCMAKE_TOOLCHAIN_FILE=/opt/yolo/cmake-toolchains/mingw-w64-x86_64.cmake
+cmake --build "$work/fhello/build-win"
+file -b "$work/fhello/build-win/fh.exe" | grep -q 'PE32+ executable (console) x86-64'
+if x86_64-w64-mingw32-objdump -p "$work/fhello/build-win/fh.exe" | grep -qE 'DLL Name: (libgfortran|libquadmath|libgcc|libwinpthread)'; then
+  echo "ERROR: Fortran cross binary depends on mingw runtime DLLs" >&2
+  x86_64-w64-mingw32-objdump -p "$work/fhello/build-win/fh.exe" | grep 'DLL Name:' >&2
+  exit 1
+fi
 
 echo "cpp smoke tests passed"
