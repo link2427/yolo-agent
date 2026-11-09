@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+#
+# yolo-gitea — small Gitea API helper using the stored token.
+#
+#   yolo-gitea whoami
+#   yolo-gitea pr-list    <owner/repo> [open|closed|all]
+#   yolo-gitea pr-view    <owner/repo> <n>
+#   yolo-gitea pr-diff    <owner/repo> <n>
+#   yolo-gitea pr-create  <owner/repo> <head> <base> <title> [body-file]
+#   yolo-gitea comment    <owner/repo> <n> <body-file|->
+#   yolo-gitea review     <owner/repo> <n> <COMMENT|APPROVE|REQUEST_CHANGES> <body-file|->
+#   yolo-gitea api        <METHOD> <path> [json-body-file]
+set -euo pipefail
+# shellcheck source=/opt/yolo/lib/env.sh
+. /opt/yolo/lib/env.sh
+
+: "${GITEA_HOST:?GITEA_HOST is not set}"
+API="${GITEA_PROTOCOL:-http}://${GITEA_HOST}/api/v1"
+[[ -n "${GITEA_TOKEN:-}" ]] || { echo "yolo-gitea: no GITEA_TOKEN (run: yolo login)" >&2; exit 1; }
+
+call() { # method path [data-file]
+  local args=(-fsS -X "$1" -H "Authorization: token ${GITEA_TOKEN}" -H 'Accept: application/json')
+  if [[ $# -ge 3 ]]; then args+=(-H 'Content-Type: application/json' --data-binary "@$3"); fi
+  curl "${args[@]}" "${API}$2"
+}
+body_json() { # file|- -> {"body": "..."} on stdout
+  if [[ "$1" == - ]]; then jq -Rs '{body: .}'; else jq -Rs '{body: .}' < "$1"; fi
+}
+
+cmd="${1:-}"; shift || true
+case "$cmd" in
+  whoami)    call GET /user | jq -r '.login' ;;
+  pr-list)   call GET "/repos/$1/pulls?state=${2:-open}&limit=50" \
+               | jq -r '.[] | "#\(.number)\t\(.head.ref) -> \(.base.ref)\t\(.user.login)\t\(.title)"' ;;
+  pr-view)   call GET "/repos/$1/pulls/$2" \
+               | jq -r '"#\(.number) \(.title)\nstate: \(.state)  \(.head.ref) -> \(.base.ref)  by \(.user.login)\n\n\(.body // "")"' ;;
+  pr-diff)   curl -fsS -H "Authorization: token ${GITEA_TOKEN}" "${API}/repos/$1/pulls/$2.diff" ;;
+  pr-create)
+    tmp="$(mktemp)"; trap 'rm -f "$tmp"' EXIT
+    jq -n --arg h "$2" --arg b "$3" --arg t "$4" --rawfile body "${5:-/dev/null}" \
+      '{head: $h, base: $b, title: $t, body: $body}' > "$tmp"
+    call POST "/repos/$1/pulls" "$tmp" | jq -r '.html_url' ;;
+  comment)
+    tmp="$(mktemp)"; trap 'rm -f "$tmp"' EXIT
+    body_json "$3" > "$tmp"
+    call POST "/repos/$1/issues/$2/comments" "$tmp" | jq -r '.html_url' ;;
+  review)
+    tmp="$(mktemp)"; trap 'rm -f "$tmp"' EXIT
+    body_json "$4" | jq --arg e "$3" '. + {event: $e}' > "$tmp"
+    call POST "/repos/$1/pulls/$2/reviews" "$tmp" | jq -r '.html_url // .id' ;;
+  api)       call "$1" "$2" "${@:3}" ;;
+  *) sed -n '3,12p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+esac

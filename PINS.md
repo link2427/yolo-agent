@@ -4,52 +4,70 @@ Everything is pinned. The build fails on a hash mismatch, and `--only-binary`
 is enforced for Python so a pin with no cp311 wheel fails at build time rather
 than on the offline host.
 
-**Why this matters here:** the images are built once, on a networked machine,
-and then shipped to a host with no internet. Nothing in this repository can be
-re-verified or repaired after export — so the pins *are* the supply chain.
+The images are built once, on a networked machine, and then carried to a lab
+with no internet. Nothing can be re-verified or repaired there, so the pins are
+the supply chain. All pins are `ARG`s at the top of the `Dockerfile`.
 
-## Images
+## Tiers
 
-| Image | Dockerfile | Adds |
-|-------|-----------|------|
-| `yolo-agent` | `Dockerfile` | base: agents, browser IDE, Python 3.11 |
-| `yolo-agent-cpp` | `Dockerfile.cpp` | C/C++ toolchain + mingw-w64 Windows cross compiler |
-| `yolo-agent-reverse-engineering` | `Dockerfile.reverse` | decompilers, JVM tools, binary analysis |
+One `Dockerfile`, three tags: `yolo-agent:3.0.0-core`, `-cpp`, `-full`. Each
+tier contains the one below it.
 
 ## Agents
 
 | Tool | Version | Source | Integrity |
 |------|---------|--------|-----------|
-| opencode | 1.18.30 | `github.com/anomalyco/opencode` release tarball | sha256 TOFU¹ `5500724685…699d17` |
-| pi | 0.85.1 | `github.com/earendil-works/pi` release tarball | sha256 **vs official release SHA256SUMS**² `494e498f47…1fe25a` |
-| DeepSeek Harness (`dsh`) | 0.1.5-rc.1 | npm `@deepseek-ai/dsh` | exact top-level version plus a complete transitive integrity lock in `docker/deepseek-harness/pnpm-lock.yaml` (561 packages, every `integrity:` hash recorded); pnpm 11.7.0; CLI version and config boot verified at build |
+| opencode | 1.18.30 | `github.com/anomalyco/opencode` release tarball | sha256 pinned `5500724685…699d17` |
+| pi | 0.85.1 | `github.com/earendil-works/pi` release tarball | sha256 pinned `494e498f47…1fe25a` |
+| Crush | 0.100.0 | `github.com/charmbracelet/crush` release tarball | sha256 pinned `122d4afe0e…cd7a152` |
+| Goose | 1.57.0 | `github.com/aaif-goose/goose` release tarball | sha256 pinned `10eb96cb6a…df98e3` |
+| Codex | 0.167.0 | `github.com/openai/codex` release tarball (musl) | sha256 pinned `9d64836106…da251a` |
+| Qwen Code | 0.27.0 | npm `@qwen-code/qwen-code` | exact version; npm registry integrity hashes |
+| Claude Code | 2.1.319 | npm `@anthropic-ai/claude-code` (native linux-x64 binary) | exact version; npm registry integrity hashes |
 
-¹ **TOFU** = trust-on-first-use. The project publishes no checksums for its
-release tarball, so the hash was recorded from the first verified download. A
-mismatch fails the build, which is what catches a re-tagged or tampered asset.
+Every binary must run and print its pinned version at build time
+(`/opt/agents/VERSIONS.txt`), and the smoke test makes each agent complete a
+request against a stub model server with no network.
 
-² pi and ttyd publish an official `SHA256SUMS` in each release; the build
-verifies against that file and only falls back to the pinned TOFU hash if the
-asset is missing.
-
-### Removed in 2.0
-
-goose, aider, prime-agent, and OpenHands were removed. OpenHands never worked
-reliably in this container, and the other three tripled the Python surface for
-no capability the remaining agents lack. Their pins are gone from this file on
-purpose — an entry here means "this ships in an image".
-
-## Web IDE
+## Web surfaces
 
 | Tool | Version | Source | Integrity |
 |------|---------|--------|-----------|
-| code-server | 4.137.0 | `github.com/coder/code-server` standalone tarball | sha256 TOFU¹ `9303165b7f…d6d9c8b` |
-| ttyd | 1.7.7 | `github.com/tsl0922/ttyd` release binary | sha256 **vs official release SHA256SUMS**² (verified at build) |
-| VS Code extension pack | 19 declared + their dependency closure (21 entries) | Open VSX, installed at build time | every installed extension is recorded in `/opt/yolo/EXTENSIONS-MANIFEST.txt` inside the image |
+| code-server | 4.137.0 | `github.com/coder/code-server` standalone tarball | sha256 pinned `9303165b7f…d6d9c8b` |
+| ttyd | 1.7.7 | `github.com/tsl0922/ttyd` release binary | sha256 checked against the release's own `SHA256SUMS` |
+| File Browser | 2.63.23 | `github.com/filebrowser/filebrowser` release tarball | sha256 pinned `b14db2bb80…909e88` |
 
-The C/C++ extension set (`clangd`, `cmake-tools`, `cmake`, `lldb`) is installed
-in **every** image so IntelliSense works in the base container too; only
-`yolo-agent-cpp` ships the compilers themselves.
+## VS Code extensions
+
+Installed from Open VSX at build time into `/opt/vscode-extensions`; the exact
+versions are recorded in `/opt/yolo/manifests/vscode-extensions.txt`.
+
+| Extension | Notes |
+|---|---|
+| `redhat.vscode-yaml` | schema store download turned off |
+| `tamasfe.even-better-toml` | schema download turned off |
+| `timonwong.shellcheck` | uses `/usr/bin/shellcheck` |
+| `editorconfig.editorconfig` | |
+| `esbenp.prettier-vscode` | |
+| `llvm-vs-code-extensions.vscode-clangd` | cpp and full tiers only |
+| `ms-vscode.cmake-tools` | cpp and full tiers only; automatic kit scan off |
+| `twxs.cmake` | cpp and full tiers only |
+| `mhutchie.git-graph` | |
+| `kilocode.Kilo-Code` | agent panel, configured for SEC09 |
+| `github.github-vscode-theme`, `dracula-theme.theme-dracula`, `Catppuccin.catppuccin-vsc`, `PKief.material-icon-theme` | themes and icons |
+
+Removed in 3.0 because they reach for the internet: `vadimcn.vscode-lldb`,
+`ms-python.python`, `eamodio.gitlens`. Also dropped: `dbaeumer.vscode-eslint`,
+`streetsidesoftware.code-spell-checker`, `mskelton.one-dark-theme`, and Cline
+(`saoudrizwan.claude-dev`, which cannot be pre-configured). See
+[docs/07-WEB-IDE.md](docs/07-WEB-IDE.md).
+
+## Skills
+
+| Item | Pin |
+|---|---|
+| `anthropics/skills` | commit `2c5958ecac7cee2b583967a2c4981d0f4a75c579`; only skills whose `LICENSE.txt` is the Apache License are copied in |
+| house skills | `docker/skills/` in this repository |
 
 ## Base OS and runtimes
 
@@ -58,8 +76,8 @@ in **every** image so IntelliSense works in the base container too; only
 | Debian base | 12 (bookworm), slim | `debian:bookworm-slim` | distro-managed |
 | Python | **3.11** | Debian bookworm `python3` | distro-managed; the project targets exactly one interpreter version |
 | Node | 22 | `node:22-bookworm-slim` | linux/amd64 manifest digest pinned: `sha256:83f487e0…7767a7e5`; only `/usr/local` is copied forward |
-| cmake / ninja / gcc / g++ / clang / lld / lldb / gdb / make / pkg-config / ccache / nasm / valgrind / lcov / gcovr / autotools | Debian 12 | apt | distro-managed |
-| mingw-w64 cross toolchain | 10.0.0-3 (`gcc-mingw-w64-x86-64` 12.2.0) | apt | distro-managed; Debian's POSIX threading model is the default |
+| cmake / ninja / gcc / g++ / gfortran / liblapack / libblas / clang / lld / lldb / gdb / make / pkg-config / ccache / nasm / valgrind / lcov / gcovr / autotools | Debian 12 | apt | distro-managed |
+| mingw-w64 cross toolchain | 10.0.0-3 (`gcc`/`g++`/`gfortran-mingw-w64-x86-64` 12.2.0) | apt | distro-managed; Debian's POSIX threading model is the default |
 | Temurin JDK | 21.0.12.1+1 | Adoptium GitHub release | sha256 `ce79869e13…faee94`; required because Ghidra ≥ 12 needs Java 21 and Debian 12 ships only OpenJDK 17 |
 
 The mingw-w64 cross compiler is pinned to the **POSIX threading variant** via
@@ -74,14 +92,14 @@ vendored and would cost several hundred MB; the distro version is what
 
 ## Python 3.11 environment (`/opt/pyenv`)
 
-One environment, one interpreter version, per image:
+One environment, one interpreter version, in every tier:
 
 | File | Used by | Contents |
 |------|---------|----------|
-| `docker/requirements-common.txt` | all three images | ~45 general-purpose packages (HTTP, CLI, data, testing, linting, IPython) |
-| `docker/requirements-reverse.txt` | reverse image only | layered onto the **same** venv — decompilers and binary-analysis bindings |
+| `docker/requirements-common.txt` | all three tiers | ~45 general-purpose packages (HTTP, CLI, data, testing, linting, IPython) |
+| `docker/requirements-reverse.txt` | full tier only | layered onto the **same** venv — decompilers and binary-analysis bindings |
 
-The reverse image therefore has exactly one environment containing both sets; it
+The full tier therefore has exactly one environment containing both sets; it
 does not create a second venv.
 
 ### Packages pinned below their latest release on purpose
@@ -113,7 +131,7 @@ constraints as hard**, so no combination of pins resolves:
   reverse smoke suite runs its CLI during the build, and that execution is the
   only real evidence it works.
 
-Extraction is the capability the image exists for, so `xdis` wins. The
+Extraction is the capability the full tier exists for, so `xdis` wins. The
 alternative — dropping `pyinstxtractor-ng` to satisfy the decompilers — would
 remove the ability to unpack a PyInstaller `.exe` at all.
 
@@ -131,20 +149,21 @@ Trust boundary: `pycdc`, `jadx`, `Ghidra`, and `radare2` are third-party
 analysis tools that parse **hostile input**. They run as uid 10001 inside the
 container with no network and no capabilities, which is the containment this
 project relies on — but a parsing bug in any of them is a genuine risk, which is
-why a dedicated image exists rather than folding them into the base.
+why they are only in the `full` tier.
 
-## Offline packaging
+## Offline release
 
 | Item | Detail |
 |------|--------|
-| Bundles | one ZIP per image: `yolo-agent-<flavor>-<version>-offline.zip` |
-| Asset limit | GitHub release assets must be < 2 GiB; `scripts/package-offline.sh` splits into 1900 MiB parts with checksums and reassembly instructions if a bundle exceeds it |
-| Verification | `SHA256SUMS` inside the bundle for the image archive, plus a `.zip.sha256` sidecar for the ZIP itself |
+| Images | `yolo-agent-<v>-images.tar.zst`: one `docker save` of all three tiers, zstd level 19. Layers the tiers share are stored once. |
+| Asset limit | split into 1900 MiB parts (`.part-00`, `.part-01`, ...) when larger than GitHub's 2 GiB limit |
+| Kit | `yolo-agent-<v>-kit.zip`: compose files, env templates, `config/seccomp.json`, docs, `install.sh`, `tools/gpu-exporter.py` |
+| Verification | `SHA256SUMS` covers every file; `install.sh load` checks it before loading |
 
 ## Audit trail
 
-- `/opt/PYTHON-MANIFEST.txt` — exact `pip freeze` output baked into the image.
-- `/opt/yolo/EXTENSIONS-MANIFEST.txt` — code-server extension versions.
-- `IMAGE-INSPECT.json` — `docker image inspect` output in each offline bundle.
-- `SOURCE-COMMIT.txt` — the git commit each bundle was built from.
-- `docker/deepseek-harness/pnpm-lock.yaml` — full transitive npm lock.
+- `/opt/yolo/manifests/python.txt` — exact `pip freeze` output.
+- `/opt/yolo/manifests/vscode-extensions.txt` — code-server extension versions.
+- `/opt/agents/VERSIONS.txt` — agent versions, checked at build.
+- `/opt/yolo/skills/INDEX.tsv` — every skill in the library and where it came from.
+- `SOURCE-COMMIT.txt` in the kit — the git commit the release was built from.

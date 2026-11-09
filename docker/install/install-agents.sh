@@ -1,63 +1,102 @@
 #!/usr/bin/env bash
 #
-# Install the two standalone agent CLIs that ship in every yolo-agent image,
-# pinned and integrity-checked.
+# Install every agent CLI under /opt/agents, with launchers in /opt/agents/bin.
 #
-#   opencode -> standalone binary  /opt/opencode/opencode  (symlink in /usr/local/bin)
-#   pi       -> standalone binary  /opt/pi/pi/pi           (symlink in /usr/local/bin)
+#   opencode     binary      github.com/anomalyco/opencode        sha256 pinned
+#   pi           binary      github.com/earendil-works/pi          sha256 pinned
+#   crush        binary      github.com/charmbracelet/crush        sha256 pinned
+#   goose        binary      github.com/aaif-goose/goose           sha256 pinned
+#   codex        binary      github.com/openai/codex               sha256 pinned
+#   qwen         npm         @qwen-code/qwen-code                  version pinned
+#   claude       npm         @anthropic-ai/claude-code             version pinned
 #
-# DeepSeek Harness (`dsh`) is installed separately by
-# install-deepseek-harness.sh, because its npm plugin graph is large and is
-# cached as its own build stage.
-#
-# Integrity model (see PINS.md):
-#   * pi       -> verified against the OFFICIAL SHA256SUMS published in its
-#                 release; the pinned hash is only a fallback.
-#   * opencode -> no official checksums are published for the CLI tarball, so
-#                 the sha256 below is pinned from the first verified download
-#                 (TOFU) and fails the build on mismatch.
-#
-# All of this happens at BUILD time on a networked machine. The shipped image
-# never downloads anything again.
+# The npm packages are verified by npm's registry integrity hashes. Claude
+# Code's npm package installs its native linux-x64 binary from an optional
+# dependency, which happens here, at build time.
 #
 set -euo pipefail
 
-OPENCODE_VERSION="${OPENCODE_VERSION:-1.18.30}"
-OPENCODE_SHA256="${OPENCODE_SHA256:-55007246858165496ff85ba1c2b648f7421e8e2013bf4189a680c9ff8e699d17}"
-PI_VERSION="${PI_VERSION:-0.85.1}"
-PI_SHA256="${PI_SHA256:-494e498f47d74d21f40b3386f6a5e921a3d49531a169cab55bbdaca0ea1fe25a}"
+: "${OPENCODE_VERSION:?}" "${OPENCODE_SHA256:?}"
+: "${PI_VERSION:?}" "${PI_SHA256:?}"
+: "${CRUSH_VERSION:?}" "${CRUSH_SHA256:?}"
+: "${GOOSE_VERSION:?}" "${GOOSE_SHA256:?}"
+: "${CODEX_VERSION:?}" "${CODEX_SHA256:?}"
+: "${QWEN_CODE_VERSION:?}" "${CLAUDE_CODE_VERSION:?}"
 
-verify_sha256() { echo "$1  $2" | sha256sum -c - >/dev/null; }
+A=/opt/agents
+mkdir -p "$A/bin"
 
-# --- opencode ----------------------------------------------------------------
-echo ">> installing opencode ${OPENCODE_VERSION}"
-curl -fsSL --retry 3 -o /tmp/opencode.tar.gz \
-  "https://github.com/anomalyco/opencode/releases/download/v${OPENCODE_VERSION}/opencode-linux-x64.tar.gz"
-verify_sha256 "$OPENCODE_SHA256" /tmp/opencode.tar.gz
-mkdir -p /opt/opencode
-tar -xzf /tmp/opencode.tar.gz -C /opt/opencode
-rm -f /tmp/opencode.tar.gz
-chmod 0755 /opt/opencode/opencode
-ln -sf /opt/opencode/opencode /usr/local/bin/opencode
-opencode --version >/dev/null
+fetch() { # url sha256 dest
+  curl -fsSL --retry 4 --retry-delay 3 -o "$3" "$1"
+  echo "$2  $3" | sha256sum -c - >/dev/null
+}
 
-# --- pi ----------------------------------------------------------------------
-echo ">> installing pi ${PI_VERSION}"
-curl -fsSL --retry 3 -o /tmp/pi-linux-x64.tar.gz \
-  "https://github.com/earendil-works/pi/releases/download/v${PI_VERSION}/pi-linux-x64.tar.gz"
-# Prefer the official checksum when the release publishes one; the pinned
-# TOFU hash keeps the build verifiable if that asset ever disappears.
-if curl -fsSL --retry 3 -o /tmp/pi.SHA256SUMS \
-      "https://github.com/earendil-works/pi/releases/download/v${PI_VERSION}/SHA256SUMS" 2>/dev/null; then
-  grep "pi-linux-x64.tar.gz" /tmp/pi.SHA256SUMS | (cd /tmp && sha256sum -c -) >/dev/null
-else
-  verify_sha256 "$PI_SHA256" /tmp/pi-linux-x64.tar.gz
-fi
-mkdir -p /opt/pi
-tar -xzf /tmp/pi-linux-x64.tar.gz -C /opt/pi
-rm -f /tmp/pi-linux-x64.tar.gz /tmp/pi.SHA256SUMS
-chmod 0755 /opt/pi/pi/pi
-ln -sf /opt/pi/pi/pi /usr/local/bin/pi
-pi --version >/dev/null
+echo ">> opencode ${OPENCODE_VERSION}"
+fetch "https://github.com/anomalyco/opencode/releases/download/v${OPENCODE_VERSION}/opencode-linux-x64.tar.gz" \
+  "$OPENCODE_SHA256" /tmp/opencode.tgz
+mkdir -p "$A/opencode"
+tar -xzf /tmp/opencode.tgz -C "$A/opencode" --no-same-owner
+ln -sf ../opencode/opencode "$A/bin/opencode"
 
-echo ">> install-agents.sh: opencode ${OPENCODE_VERSION} + pi ${PI_VERSION} installed"
+echo ">> pi ${PI_VERSION}"
+fetch "https://github.com/earendil-works/pi/releases/download/v${PI_VERSION}/pi-linux-x64.tar.gz" \
+  "$PI_SHA256" /tmp/pi.tgz
+mkdir -p "$A/pi"
+tar -xzf /tmp/pi.tgz -C "$A/pi" --no-same-owner
+ln -sf ../pi/pi/pi "$A/bin/pi"
+
+echo ">> crush ${CRUSH_VERSION}"
+fetch "https://github.com/charmbracelet/crush/releases/download/v${CRUSH_VERSION}/crush_${CRUSH_VERSION}_Linux_x86_64.tar.gz" \
+  "$CRUSH_SHA256" /tmp/crush.tgz
+mkdir -p "$A/crush"
+tar -xzf /tmp/crush.tgz -C "$A/crush" --no-same-owner --strip-components=1
+ln -sf ../crush/crush "$A/bin/crush"
+
+echo ">> goose ${GOOSE_VERSION}"
+fetch "https://github.com/aaif-goose/goose/releases/download/v${GOOSE_VERSION}/goose-x86_64-unknown-linux-gnu.tar.gz" \
+  "$GOOSE_SHA256" /tmp/goose.tgz
+mkdir -p "$A/goose"
+tar -xzf /tmp/goose.tgz -C "$A/goose" --no-same-owner
+ln -sf ../goose/goose "$A/bin/goose"
+
+echo ">> codex ${CODEX_VERSION}"
+fetch "https://github.com/openai/codex/releases/download/rust-v${CODEX_VERSION}/codex-x86_64-unknown-linux-musl.tar.gz" \
+  "$CODEX_SHA256" /tmp/codex.tgz
+mkdir -p "$A/codex"
+tar -xzf /tmp/codex.tgz -C "$A/codex" --no-same-owner
+mv "$A/codex/codex-x86_64-unknown-linux-musl" "$A/codex/codex"
+ln -sf ../codex/codex "$A/bin/codex"
+
+echo ">> npm agents: qwen-code ${QWEN_CODE_VERSION}, claude-code ${CLAUDE_CODE_VERSION}"
+export npm_config_update_notifier=false npm_config_fund=false npm_config_audit=false
+npm install --global --prefix "$A/npm" --no-progress \
+  "@qwen-code/qwen-code@${QWEN_CODE_VERSION}" \
+  "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
+ln -sf ../npm/bin/qwen "$A/bin/qwen"
+ln -sf ../npm/bin/claude "$A/bin/claude"
+# Optional dependencies for other platforms are not installed by npm, but make
+# sure no stray cache or platform package is left behind.
+rm -rf /root/.npm /tmp/*.tgz
+
+chown -R root:root "$A"
+chmod -R a+rX "$A"
+
+echo ">> versions (each binary must run and report its pinned version)"
+check() { # name version cmd...
+  local n="$1" v="$2" out; shift 2
+  out="$(OTEL_SDK_DISABLED=true HOME=/tmp/agent-home "$@" --version 2>&1)" || { echo "$n --version failed: $out" >&2; exit 1; }
+  grep -Fq "$v" <<<"$out" || { echo "$n: expected $v, got: $out" >&2; exit 1; }
+  printf '%-9s %s\n' "$n" "$v"
+}
+{
+  check opencode "$OPENCODE_VERSION" "$A/bin/opencode"
+  check pi "$PI_VERSION" "$A/bin/pi"
+  check crush "$CRUSH_VERSION" "$A/bin/crush"
+  check goose "$GOOSE_VERSION" "$A/bin/goose"
+  check codex "$CODEX_VERSION" "$A/bin/codex"
+  check qwen "$QWEN_CODE_VERSION" "$A/bin/qwen"
+  check claude "$CLAUDE_CODE_VERSION" env DISABLE_AUTOUPDATER=1 "$A/bin/claude"
+} > "$A/VERSIONS.txt"
+cat "$A/VERSIONS.txt"
+rm -rf /tmp/agent-home
+du -sh "$A"/* | sort -h

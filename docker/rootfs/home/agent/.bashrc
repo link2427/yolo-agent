@@ -1,50 +1,20 @@
-# yolo-agent profile
-umask 077
+# yolo-agent shell profile. Settings, agent config and git are handled by the
+# entrypoint and /etc/profile.d/yolo.sh; this file only sets up the prompt.
+[[ $- == *i* ]] || return
+umask 022
 export EDITOR=vim
+HISTSIZE=50000
+HISTFILESIZE=100000
+shopt -s histappend checkwinsize
+PS1='\[\e[38;5;209m\]yolo\[\e[0m\]:\[\e[1m\]\w\[\e[0m\]\$ '
+alias ll='ls -lah --color=auto' ls='ls --color=auto' grep='grep --color=auto'
 
-# Flavor-specific environment (JAVA_HOME/PATH for the reverse-engineering image).
-if [[ -r /opt/yolo/toolchain-env.sh ]]; then
-  # shellcheck source=/dev/null
-  . /opt/yolo/toolchain-env.sh
-fi
-
-# Python: /opt/pyenv (Python 3.11) is already first on PATH and VIRTUAL_ENV is
-# baked into the image, so `python3` is the environment with all the packages.
-# The system interpreter at /usr/bin/python3 is the same 3.11 build.
-
-# Auto-configure the agents when VLLM_BASE_URL/VLLM_MODEL are set in the env
-# file but the endpoint configs have not been written yet. Edit the env file on
-# the host, launch, and everything is ready — no manual step.
-if [[ -n "${VLLM_BASE_URL:-}" ]] && [[ -n "${VLLM_MODEL:-}" ]] \
-   && ! grep -q '"provider"' "$HOME/.config/opencode/opencode.json" 2>/dev/null; then
-  echo ">> yolo-agent: configuring agents for $VLLM_BASE_URL ..."
-  /opt/yolo/configure-agents.sh
-fi
-
-# Auto-configure git for Gitea when GITEA_HOST is set. Re-runs each launch:
-# the env file is the source of truth, so changing the token or switching
-# token<->SSH mode applies on the next launch.
-if [[ -n "${GITEA_HOST:-}" ]]; then
-  echo ">> yolo-agent: configuring git for $GITEA_HOST ..."
-  /opt/yolo/configure-git.sh || true
-fi
-
-if [[ -t 0 ]]; then
+if [[ -z "${YOLO_GREETED:-}" ]]; then
+  export YOLO_GREETED=1
   echo
-  echo "yolo-agent — opencode | pi | dsh"
-  case "${YOLO_FLAVOR:-base}" in
-    cpp)
-      echo "  c++:    cmake + ninja + clang + gcc; mingw-w64 cross -> 64-bit Windows PE"
-      echo "          helper: cpp-build.sh <dir> [linux|windows|both]"
-      ;;
-    reverse)
-      echo "  reverse: pyinstxtractor-ng | pycdc/pycdas | jadx | radare2 | ghidra-headless"
-      echo "          guide:  /opt/yolo/docs/06-REVERSE-ENGINEERING.md"
-      ;;
-  esac
-  echo "  python: $(python3 --version 2>&1) at /opt/pyenv"
-  echo "  docs:   /opt/yolo/docs/00-INDEX.md   security: /opt/yolo/docs/10-SECURITY.md"
-  echo "  config: VLLM_BASE_URL/VLLM_MODEL in the env file -> auto-configured on launch"
-  echo "  web:    code-server :8080 | terminal :7681 | DeepSeek Harness :3080"
+  echo -e "\e[1myolo-agent ${YOLO_VERSION:-}\e[0m  (${YOLO_TIER:-?} tier)   model: $(jq -r '.model // "?"' ~/.yolo/state.json 2>/dev/null)"
+  echo "  agents:  claude  opencode  qwen  pi  crush  goose  codex"
+  echo "  help:    yolo status   yolo doctor   yolo skills   yolo tools"
+  [[ "${YOLO_TIER:-}" != core ]] && echo "  build:   cpp-build <dir> linux|windows|both"
   echo
 fi

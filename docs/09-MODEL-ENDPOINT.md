@@ -1,135 +1,67 @@
-# 09 — Model endpoint
+# 09 — The model endpoint
 
-Every agent in every image talks to **one** OpenAI-compatible endpoint. Set two
-variables and the agent configs are written for you on first launch.
+All agents use SEC09, the lab's vLLM server at `192.168.1.101:8000`.
 
-## Configure
+## Settings
 
-Copy the env template for your flavor and edit it:
-
-```bash
-cp config/base.env.example config/base.env          # base
-cp config/cpp.env.example config/cpp.env            # C/C++
-cp config/reverse.env.example config/reverse.env    # reverse engineering
-```
-
-The values that matter:
-
-| Variable | Meaning | Example |
+| Variable | Default | Meaning |
 |---|---|---|
-| `VLLM_BASE_URL` | OpenAI-compatible base URL, including `/v1` | `http://192.168.1.50:8000/v1` |
-| `VLLM_MODEL` | exact model id the server serves | `Qwen/Qwen3.8-27B` |
-| `VLLM_CONTEXT` | context window in tokens; must match the server's `--max-model-len` | `262144` |
-| `VLLM_REASONING_EFFORT` | `off`, `low`, `medium`, or `xhigh` | `xhigh` |
-| `VLLM_API_KEY` | key, if your server requires one | `local` |
+| `VLLM_BASE_URL` | `http://192.168.1.101:8000/v1` | OpenAI-style base URL. Claude Code gets the same host without `/v1`. |
+| `VLLM_MODEL` | empty | model id; empty = the first model SEC09 serves |
+| `VLLM_API_KEY` | `local` | `local` = send `yolo-<person>` (for usage per person); anything else is sent as is |
+| `VLLM_REASONING_EFFORT` | `xhigh` | `off`, `low`, `medium`, `xhigh` for reasoning models |
+| `VLLM_CONTEXT` | empty | context window in tokens; empty = `max_model_len` from `/v1/models`, else 131072 |
+| `VLLM_VISION_MODELS` | `auto` | models that accept images: `auto` (all) or a space-separated list |
 
-Confirm the endpoint answers before you debug the container:
+Where to set them, later wins:
 
-```bash
-curl "$VLLM_BASE_URL/models"
-```
+1. `/etc/yolo/defaults.env` in the image (the defaults above).
+2. `fleet.env` in the fleet repo — for everyone.
+3. `people/<name>.env` in the fleet repo — for one person.
+4. The person's `.env` next to `compose.yaml`.
 
-Take the model id from that response — it must match `VLLM_MODEL` exactly,
-including any `owner/` prefix.
+An empty value in `.env` does not override. After a change: `yolo sync` (fleet
+repo) or `docker compose restart` (`.env`). Values with spaces need quotes in
+the fleet files (`GIT_NAME="YOLO Agent"`): they are read by bash.
 
-## What gets written, and when
+## Model discovery
 
-`/opt/yolo/configure-agents.sh` writes all three agent configs. `~/.bashrc` runs
-it automatically on an interactive launch when **both** `VLLM_BASE_URL` and
-`VLLM_MODEL` are set **and** the opencode config does not yet have a `provider`
-key. So the normal flow is: edit the env file, start the container, done.
-
-To re-run it manually after changing the env file:
-
-```bash
-/opt/yolo/configure-agents.sh
-```
-
-It is idempotent and safe to re-run. The files it writes:
-
-| Agent | File | Key settings |
-|---|---|---|
-| opencode | `~/.config/opencode/opencode.json` | `"permission": "allow"`, a custom `vllm` provider, `enabled_providers: ["vllm"]`, model limits and reasoning variants |
-| pi | `~/.pi/agent/settings.json` + `~/.pi/agent/models.json` | `defaultProjectTrust: "always"`, telemetry off, `qwen-chat-template` thinking format, context window |
-| DeepSeek Harness | `~/.dsh/settings.yaml` | custom `vllm` provider, reasoning effort map, empty DeepSeek cloud provider |
-
-All three are written with mode `600`.
-
-## Reasoning effort
-
-`VLLM_REASONING_EFFORT` accepts:
-
-| Value | Behavior |
-|---|---|
-| `xhigh` | default; maximum reasoning. `high` is accepted as an alias |
-| `medium` | balanced |
-| `low` | minimal reasoning |
-| `off` | thinking disabled (instruct mode) |
-
-It is wired into every agent: opencode gets a default plus per-level variants,
-pi gets `defaultThinkingLevel` and an in-session `/effort` command, and DeepSeek
-Harness gets a `reasoningEfforts` map.
-
-Change it per session rather than rebuilding:
-
-- **pi** — `/effort` inside the session
-- **opencode** — cycle the model variant in-session
-
-An unrecognized value logs a warning and falls back to `xhigh` rather than
-failing.
-
-## Context window
-
-`VLLM_CONTEXT` is worth setting explicitly. Agent catalogs often assume 128k for
-Qwen-class model ids even when the server was started with a much larger
-`--max-model-len`, which makes the agent truncate or compact far too early.
-
-Set it to the value the server was actually started with. A mismatch is not
-detected automatically — the agent will simply behave as though the smaller or
-larger window is real. When it is set, all three agents receive it
-(opencode `limit.context`, pi `contextWindow`, DeepSeek Harness
-`contextWindow`). When it is unset, each agent falls back to its catalog
-default.
-
-## LM Studio instead of vLLM
-
-LM Studio's OpenAI-compatible server works the same way. Comment out the
-`VLLM_*` lines and set:
+`yolo configure` calls `GET $VLLM_BASE_URL/models`, caches the answer in
+`~/.yolo/models.json`, and writes every served model into each agent's config,
+with the chosen one as default. The output limit is a quarter of the context,
+between 4096 and 32768 tokens. If SEC09 does not answer, the cached list is used
+and the agents are still configured.
 
 ```bash
-LM_STUDIO_BASE_URL=http://192.168.1.50:1234/v1
-LM_STUDIO_MODEL=your-loaded-model-id
+yolo models     # what SEC09 serves; ★ = the default
+yolo status     # endpoint, model, reachability
 ```
 
-opencode then uses an `lmstudio` provider instead of `vllm`. `VLLM_API_KEY` and
-the other variables keep working as documented.
+## Changing the model for everyone
 
-## Do not set cloud keys
+Put `VLLM_MODEL=<id>` in the fleet repo's `fleet.env` and push. Each container
+picks it up on its next start or `yolo sync`. For one person, use
+`people/<name>.env`.
 
-Leave `DEEPSEEK_API_KEY` and `OPENAI_API_KEY` unset:
+## Through the lab monitor
 
-- The host has no internet, so a cloud call cannot succeed anyway.
-- Setting them puts cloud models back into the agent pickers, which is
-  confusing when the only reachable models are local.
+The monitor (`compose.lab.yaml`, port 4000) is a proxy for SEC09 that records
+every request. To have a person's usage show up there:
 
-`configure-dsh.sh` writes `llm-deepseek` with an empty model list on purpose.
-
-## Troubleshooting
-
-**Agents start but cannot reach a model.** Check that the env file for *your
-flavor* is populated — the three flavors use separate env files and separate
-home volumes, so configuring `config/base.env` does nothing for
-`compose.cpp.yaml`. Then verify the config was actually written:
-
-```bash
-jq -e '.provider.vllm' ~/.config/opencode/opencode.json
+```
+VLLM_BASE_URL=http://<lab-host>:4000/v1
 ```
 
-**The config was regenerated but nothing changed.** `configure-agents.sh` only
-runs automatically when the opencode config lacks a `provider` key. Run it by
-hand, or delete the flavor's home volume to start clean.
+in their `.env` or in `fleet.env` for everyone. The proxy passes OpenAI and
+Anthropic requests through unchanged (streaming included), can map aliases to
+real model ids, and adds the aliases to `/v1/models`. See
+[14-LAB.md](14-LAB.md).
 
-**The endpoint is unreachable from inside the container.** Confirm the host name
-resolves (use an IP if DNS is not available in the container) and that the model
-server binds an address the container can reach — `127.0.0.1` on the host is not
-reachable from inside a container.
+## Requirements on the vLLM side
+
+- `/v1/chat/completions` for most agents, `/v1/messages` for Claude Code,
+  `/v1/responses` for Codex.
+- A tool-calling parser enabled for the served model, or agents cannot run
+  tools.
+- If vLLM was started with `--api-key`, set `VLLM_API_KEY` to it (and
+  `UPSTREAM_API_KEY` in the lab `.env` for the monitor).

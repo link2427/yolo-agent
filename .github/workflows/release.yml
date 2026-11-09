@@ -13,54 +13,30 @@ concurrency:
   group: container-release-${{ github.ref }}
   cancel-in-progress: false
 
-env:
-  DSH_IMAGE: yolo-agent
-  CPP_IMAGE: yolo-agent-cpp
-  REVERSE_IMAGE: yolo-agent-reverse-engineering
-
 jobs:
-  prepare-release:
+  release:
     runs-on: ubuntu-latest
+    timeout-minutes: 300
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Create GitHub release
-        shell: bash
-        run: |
-          version="${GITHUB_REF_NAME#v}"
-          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --latest
-          else
-            gh release create "$GITHUB_REF_NAME" \
-              --repo "$GITHUB_REPOSITORY" \
-              --verify-tag \
-              --latest \
-              --title "yolo-agent $version" \
-              --notes "Three ready-to-burn offline bundles are attached: yolo-agent (agents + browser IDE), yolo-agent-cpp (adds an offline C/C++ toolchain with a 64-bit Windows cross compiler), and yolo-agent-reverse-engineering (adds decompilation tooling). Each ZIP contains a Docker-loadable image archive, launchers, configuration, documentation, exact loading instructions, and checksums. If a ZIP exceeds GitHub's 2 GiB asset limit, download all of its numbered parts and follow the attached REASSEMBLE instructions."
-          fi
-
-  publish:
-    needs: prepare-release
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: base
-            image: yolo-agent
-            dockerfile: Dockerfile
-            compose: compose.yaml
-          - name: cpp
-            image: yolo-agent-cpp
-            dockerfile: Dockerfile.cpp
-            compose: compose.cpp.yaml
-          - name: reverse
-            image: yolo-agent-reverse-engineering
-            dockerfile: Dockerfile.reverse
-            compose: compose.reverse.yaml
-    name: publish ${{ matrix.image }}
-    steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Version
+        id: v
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          [[ "$v" == "$(cat VERSION)" ]] || { echo "tag $GITHUB_REF_NAME does not match VERSION $(cat VERSION)"; exit 1; }
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "prefix=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/yolo-agent" >> "$GITHUB_OUTPUT"
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache /usr/local/share/boost \
+            /usr/local/share/powershell /usr/share/swift /usr/local/.ghcup
+          sudo docker image prune --all --force
+          df -h /
+
       - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
 
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
@@ -69,52 +45,39 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - id: meta
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
-        with:
-          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}
-          flavor: latest=auto
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
-
-      - uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
-        with:
-          context: .
-          file: ${{ matrix.dockerfile }}
-          target: runtime
-          platforms: linux/amd64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            VERSION=${{ steps.meta.outputs.version }}
-            VCS_REF=${{ github.sha }}
-          cache-from: |
-            type=gha,scope=ci-${{ matrix.name }}
-            type=gha,scope=runtime-${{ matrix.name }}
-          cache-to: type=gha,mode=max,scope=runtime-${{ matrix.name }}
-          provenance: mode=max
-          sbom: true
-
-      - name: Free BuildKit cache before offline export
-        run: docker buildx prune --all --force
-
-      - name: Create offline ZIP bundle
-        env:
-          RELEASE_VERSION: ${{ github.ref_name }}
-          LOCAL_IMAGE: ${{ matrix.image }}
-          MATRIX_NAME: ${{ matrix.name }}
+      # The tests run first; nothing is published unless every tier passes.
+      - name: Smoke-test all tiers
         run: |
-          version="${RELEASE_VERSION#v}"
-          image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/${LOCAL_IMAGE}:${version}"
-          ./scripts/package-offline.sh "$version" "${MATRIX_NAME}:${image}" -- dist
+          docker buildx bake \
+            --set '*.cache-from=type=gha,scope=release' \
+            --set '*.cache-to=type=gha,mode=max,scope=release' \
+            tests
 
-      - name: Upload offline bundle to release
+      - name: Build and push all tiers
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REGISTRY: ghcr.io/${{ github.repository_owner }}
+          VERSION: ${{ steps.v.outputs.version }}
+          VCS_REF: ${{ github.sha }}
         run: |
-          gh release upload "$GITHUB_REF_NAME" dist/* \
-            --repo "$GITHUB_REPOSITORY" \
-            --clobber
+          export REGISTRY="${REGISTRY,,}"
+          docker buildx bake \
+            --set '*.cache-from=type=gha,scope=release' \
+            --set '*.output=type=registry' \
+            images
+
+      - name: Free BuildKit cache before export
+        run: docker buildx prune --all --force && df -h /
+
+      - name: Package the offline release
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends zstd zip >/dev/null
+          ./scripts/package-offline.sh "${{ steps.v.outputs.version }}" "${{ steps.v.outputs.prefix }}" -- dist
+          df -h /
+
+      - name: Publish the GitHub release
+        run: |
+          v="${{ steps.v.outputs.version }}"
+          notes="$(awk -v v="$v" '$0 ~ "^## " v {p=1; next} /^## / && p {exit} p' CHANGELOG.md)"
+          gh release create "$GITHUB_REF_NAME" --verify-tag --latest \
+            --title "yolo-agent $v" --notes "$notes" dist/* \
+            || gh release upload "$GITHUB_REF_NAME" dist/* --clobber

@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# yolo wrapper for codex: per-agent settings from ~/.yolo/env/codex.env (written by
+# yolo configure), then the real binary in /opt/agents.
+if [[ -r "$HOME/.yolo/env/codex.env" ]]; then
+  # shellcheck source=/dev/null
+  . "$HOME/.yolo/env/codex.env"
+fi
+exec /opt/agents/bin/codex "$@"

@@ -18,28 +18,31 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Validate shell scripts
+      - name: Shell scripts
         run: |
-          find bin docker scripts -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
-          find bin docker scripts -type f -name '*.sh' -print0 | xargs -0 shellcheck
+          mapfile -t files < <( { find docker scripts -type f -name '*.sh'; \
+            grep -rlE '^#!/usr/bin/env bash' docker/rootfs/opt/yolo/bin; } | sort -u)
+          for f in "${files[@]}"; do bash -n "$f"; done
+          shellcheck -S warning "${files[@]}"
 
-      - name: Validate JSON config and seccomp profiles
+      - name: Python
         run: |
-          for f in config/*.json docker/rootfs/home/agent/.config/opencode/opencode.json \
-                   docker/rootfs/home/agent/.pi/agent/settings.json \
-                   docker/rootfs/home/agent/.local/share/code-server/User/settings.json \
-                   docker/deepseek-harness/package.json; do
+          python3 -m py_compile docker/rootfs/opt/yolo/lib/*.py docker/rootfs/opt/yolo/lab/*.py \
+            docker/tests/*.py tools/*.py
+
+      - name: JSON
+        run: |
+          for f in config/seccomp.json docker/rootfs/opt/yolo/vscode/settings.json docker/skills/packs.json; do
             python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$f"
           done
 
-      - name: Validate the bake graph
+      - name: Bake graph
         run: docker buildx bake --print >/dev/null
 
-      - name: Validate the compose files
+      - name: Compose files
         run: |
-          for f in compose.yaml compose.cpp.yaml compose.reverse.yaml; do
-            docker compose -f "$f" config --quiet
-          done
+          docker compose -f compose.yaml config --quiet
+          docker compose -f compose.lab.yaml config --quiet
 
   build:
     needs: validate
@@ -47,24 +50,24 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - name: base
-            dockerfile: Dockerfile
-          - name: cpp
-            dockerfile: Dockerfile.cpp
-          - name: reverse
-            dockerfile: Dockerfile.reverse
-    name: build ${{ matrix.name }}
+        tier: [core, cpp, full]
+    name: build ${{ matrix.tier }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
+
       - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
 
-      # The image smoke suites (target `test`) are the real gate: they compile
-      # a Windows PE and a Linux ELF, extract a PyInstaller archive, and serve
-      # HTTP from code-server/ttyd/DeepSeek Harness.
-      - name: Build and smoke-test ${{ matrix.name }}
+      # The smoke suites are the gate. They run with no network and check every
+      # agent end to end against a stub model server, every web service, the
+      # lab gateway, and (cpp/full) real ELF and PE builds and the RE tools.
+      - name: Build and smoke-test ${{ matrix.tier }}
         run: |
           docker buildx bake \
-            --set '${{ matrix.name }}-test.cache-from=type=gha,scope=ci-${{ matrix.name }}' \
-            --set '${{ matrix.name }}-test.cache-to=type=gha,mode=max,scope=ci-${{ matrix.name }}' \
-            '${{ matrix.name }}-test'
+            --set '${{ matrix.tier }}-test.cache-from=type=gha,scope=ci-${{ matrix.tier }}' \
+            --set '${{ matrix.tier }}-test.cache-to=type=gha,mode=max,scope=ci-${{ matrix.tier }}' \
+            '${{ matrix.tier }}-test'

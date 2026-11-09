@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# yolo wrapper for pi: per-agent settings from ~/.yolo/env/pi.env (written by
+# yolo configure), then the real binary in /opt/agents.
+if [[ -r "$HOME/.yolo/env/pi.env" ]]; then
+  # shellcheck source=/dev/null
+  . "$HOME/.yolo/env/pi.env"
+fi
+exec /opt/agents/bin/pi "$@"

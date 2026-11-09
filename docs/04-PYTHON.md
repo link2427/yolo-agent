@@ -1,6 +1,6 @@
 # 04 — Python
 
-Every yolo-agent image ships exactly **one** Python environment:
+Every yolo-agent tier ships exactly **one** Python environment:
 
 ```
 interpreter   /opt/pyenv/bin/python3      Python 3.11
@@ -27,7 +27,7 @@ one interpreter version everywhere without shipping a second Python.
 Debian 12 (bookworm) ships Python 3.11 as its system interpreter, so targeting
 3.11 costs nothing: no pyenv, no compiled interpreter, no download. It is also
 the last version that the decompilation ecosystem supports broadly, which
-matters for the reverse-engineering image.
+matters for the full tier.
 
 Several popular packages have since moved to requiring 3.12 or newer. Those are
 pinned to their last 3.11-compatible release on purpose — see
@@ -36,7 +36,7 @@ pinned to their last 3.11-compatible release on purpose — see
 ## What is installed
 
 The base set comes from `docker/requirements-common.txt` and is present in all
-three images (~45 packages, all installed from wheels — nothing compiles from
+three tiers (~45 packages, all installed from wheels — nothing compiles from
 source at build time):
 
 | Group | Packages |
@@ -54,12 +54,12 @@ source at build time):
 The exact resolved set is recorded inside the image:
 
 ```bash
-cat /opt/PYTHON-MANIFEST.txt
+cat /opt/yolo/manifests/python.txt
 ```
 
-## The reverse-engineering image adds to the same environment
+## The full tier adds to the same environment
 
-`yolo-agent-reverse-engineering` does **not** create a second venv. It installs
+The `full` tier does **not** create a second venv. It installs
 `docker/requirements-reverse.txt` on top of the shared environment, so
 `/opt/pyenv` ends up containing both sets:
 
@@ -71,7 +71,7 @@ requests, pydantic, pytest, ...        from requirements-common.txt
 
 Two things need explanation. angr is deliberately absent: its dependency
 closure needs `mulpyplexer`, which has no release usable on Python 3.11 at all.
-And two packages in the reverse image (`pydumpck` and `uncompyle6`) are
+And two packages in the full tier (`pydumpck` and `uncompyle6`) are
 installed with `--no-deps`, because their declared `xdis` range contradicts
 `pyinstxtractor-ng`'s exact `xdis==6.3.0` pin — their dependencies are pinned
 explicitly instead. Every pin that remains installs from a wheel, so the build
@@ -103,7 +103,7 @@ environment you get.
 If you need a package that is not in the image:
 
 1. Add the exact pin to `docker/requirements-common.txt` (or
-   `docker/requirements-reverse.txt`, for the reverse image).
+   `docker/requirements-reverse.txt`, for the full tier).
 2. Confirm a CPython 3.11 linux/amd64 wheel exists:
    `pip download --only-binary=:all: --python-version 3.11 -d /tmp/x <pkg>==<ver>`
 3. Rebuild and re-export the image on a networked machine.
@@ -141,5 +141,7 @@ deleting packages cannot affect the host. Removing and recreating the
 container's home volume resets any per-user Python state:
 
 ```bash
-docker volume rm yolo-agent-base-home-v1
+# in the person's folder; this also deletes agent settings and history
+docker compose down
+docker volume rm <folder-name>_home
 ```

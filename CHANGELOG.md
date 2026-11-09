@@ -1,5 +1,86 @@
 # Changelog
 
+## 3.0.0 - 2026-11-09
+
+A rebuild around three goals: easier for people who do not live in a terminal,
+centrally managed, and one release that fits on a few discs.
+
+### Changed
+
+- One `Dockerfile`, three tiers of one image: `yolo-agent:3.0.0-core`, `-cpp`
+  and `-full` (the old base, cpp and reverse-engineering images). The tiers share
+  their lower layers and an identical apps layer, so the release stores shared
+  layers once.
+- Docker Compose only. Each person is a folder (`~/yolo/<name>`) with
+  `compose.yaml`, `.env` and `workspace/`; the folder name is the project name.
+  `scripts/install.sh` loads the release and makes these folders.
+- Settings come in layers, later wins: `/etc/yolo/defaults.env` in the image
+  (SEC09, Gitea, git identity) < the fleet repo's `fleet.env` <
+  `people/<name>.env` < `yolo login` secrets < the person's `.env`. An empty
+  value in `.env` does not override. `yolo configure` rewrites every agent's
+  config on each start.
+- The release is one zstd archive of all three tiers (split into 1900 MiB parts)
+  plus a small kit zip, with one `SHA256SUMS`.
+- VS Code extensions are symlinked from the image into the home volume instead
+  of copied: about 400 MB less per person, and an image upgrade updates them at
+  once. Extensions a person installs are kept.
+
+### Added
+
+- Agents: Claude Code 2.1.319, Qwen Code 0.27.0, Crush 0.100.0, Goose 1.57.0 and
+  Codex 0.167.0 (experimental: needs the Responses API), next to opencode and pi.
+  Every agent is checked end to end at build time: each completes a request
+  against a stub model server with no network.
+- Web pages for people who prefer not to use a terminal: a start page (`:8000`)
+  linking everything; Chat (`:4096`), opencode's web UI, a full agent in the
+  browser; Files (`:8081`, File Browser) for uploads and downloads; the Kilo Code
+  agent panel in VS Code, configured for SEC09. Cline is not shipped because its
+  provider settings cannot be filled in ahead of time.
+- `yolo` command: `status`, `doctor`, `models`, `agents`, `tools`, `login`,
+  `sync`, `configure`, `skills`, `serve`, `bot`. `yolo-gitea` for pull requests,
+  comments and reviews from the shell.
+- Fleet repo (`yolo/fleet` in Gitea): one place to change the model, settings,
+  instructions and skills for everyone or for one person.
+- Skills: one library (house skills plus the Apache-licensed skills from
+  `anthropics/skills`, plus the `yolo/skills` repo and the fleet repo), with
+  nothing enabled beyond a small default set. `yolo skills enable` links a skill
+  into every agent's skills folder; packs group related skills.
+- Lab monitor (`compose.lab.yaml`, `:4000`): a proxy for `/v1/*` (OpenAI and
+  Anthropic APIs, streaming) with model aliases and a request log, a vLLM
+  metrics scraper, SQLite storage, and a custom dashboard: throughput, queue,
+  KV cache, latency, usage per person and per agent, and a request explorer.
+  Optional GPU cards from `tools/gpu-exporter.py` on SEC09.
+- Lab bot (`:9000`): reviews pull requests when they open or change, answers
+  comments that mention `@yolo`, and runs scheduled jobs from the fleet repo's
+  `bot/jobs.json`.
+- Fortran in the cpp and full tiers: `gfortran` (GCC 12) with reference
+  LAPACK/BLAS, and the mingw-w64 Fortran cross compiler
+  (`x86_64-w64-mingw32-gfortran`, POSIX threading variant) for static 64-bit
+  Windows binaries. Both CMake toolchain files set `CMAKE_Fortran_COMPILER`. The
+  smoke suite builds a LAPACK-linked Fortran program, a mixed C++/Fortran
+  program, and a static Fortran PE with no runtime DLL dependency.
+
+### Fixed
+
+- The VS Code "internet error" people kept reporting. It was
+  `vadimcn.vscode-lldb`: Open VSX serves a 94 KB stub that downloads the
+  debugger from github.com on first start ("Platform package installation
+  failed: getaddrinfo EAI_AGAIN github.com"). Removed, together with
+  `ms-python.python` (tries to install companion extensions from open-vsx.org)
+  and `eamodio.gitlens` (calls GitKraken's servers). The core tier leaves the
+  clangd and CMake extensions out, since they offer to download tools that are
+  not there. VS Code's built-in Copilot chat is turned off, and CMake Tools no
+  longer shows its "reconfigure kits" prompt.
+- Login shells (the Terminal page, VS Code terminals) kept Debian's default
+  `PATH` and could not find the agents.
+
+### Removed
+
+- DeepSeek Harness (`dsh`), the `bin/run*` launchers, `Dockerfile.cpp`,
+  `Dockerfile.reverse`, `compose.cpp.yaml`, `compose.reverse.yaml`, the
+  `config/*.env.example` templates and the separate base seccomp profile
+  (`config/seccomp.json` is the one profile now).
+
 ## 2.0.0 - 2026-09-11
 
 The modular overhaul. The repository now builds **three** independent images

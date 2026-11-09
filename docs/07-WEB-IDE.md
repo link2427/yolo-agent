@@ -1,272 +1,75 @@
-# 07 — Web IDE, terminal, and the Harness UI
+# 07 — The browser pages
 
-Every image ships the same three browser surfaces, all started by scripts inside
-the container and published by Docker on the host:
+Every person's container serves five pages. Ports are the defaults; a person's
+`.env` can change them (see [02-QUICKSTART.md](02-QUICKSTART.md)).
 
-| Surface | Container port | Host port | Host env var | Started by |
-|---|---|---|---|---|
-| code-server (VS Code in the browser) | 8080 | 8080 | `YOLO_CODE_PORT` | `/opt/yolo/server-start.sh` |
-| ttyd + tmux (browser terminal) | 7681 | 7681 | `YOLO_TERMINAL_PORT` | `/opt/yolo/server-start.sh` |
-| DeepSeek Harness UI | 3081 (relayed from loopback 3080) | 3080 | `YOLO_DSH_PORT` | `/opt/yolo/deepseek-web-start.sh` |
-
-```bash
-./bin/run-server.sh                       # base: IDE + terminal (detached)
-docker compose up -d                      # base: IDE + terminal + Harness UI
-docker compose up -d deepseek             # Harness UI only
-docker compose -f compose.cpp.yaml up -d  # C/C++ flavor, same three surfaces
-```
-
-`bin/run-server.sh` (and `bin\run-server.ps1`) publish only code-server and
-ttyd. The DeepSeek Harness UI is a separate compose service so you can restart
-the agent UI without dropping your editor session; see
-[02-QUICKSTART.md](02-QUICKSTART.md) for the launcher matrix.
-
-There is **no authentication on any of the three surfaces**. Read
-"No authentication: the risk" below before you publish them anywhere.
-
-## Publishing and restricting ports
-
-Docker Compose does the publishing, and it resolves `${...}` on the **host**
-before any container starts, from your shell environment or a repo-root `.env`
-file:
-
-```bash
-# loopback only — reach it through an SSH tunnel
-YOLO_BIND_ADDRESS=127.0.0.1 docker compose up -d
-
-# move the host ports (useful when two flavors run on one host)
-YOLO_CODE_PORT=9080 YOLO_TERMINAL_PORT=9681 YOLO_DSH_PORT=3081 docker compose up -d
-
-# the same variables work for the launchers
-YOLO_BIND_ADDRESS=127.0.0.1 ./bin/run-server.sh
-```
-
-The default is `0.0.0.0` for all three: the design target is an air-gapped LAN,
-so the ports are reachable from the network unless you say otherwise.
-
-Two details that catch people out:
-
-- Putting `YOLO_BIND_ADDRESS` or `YOLO_*_PORT` in `config/<flavor>.env` does not
-  move the published port. That file is attached with `env_file:`, which injects
-  environment variables *into the container*; the `ports:` mapping was already
-  resolved on the host. Put these in the shell (or a repo-root `.env`, which
-  Compose reads automatically).
-- Only the host side moves. Inside the container, code-server and ttyd bind
-  `0.0.0.0` (see `server-start.sh`) and the Harness relay listens on 3081; with
-  `YOLO_BIND_ADDRESS=127.0.0.1` nothing outside the Docker host can reach them,
-  but another container on the same Docker network still can.
-
-## code-server
-
-- 4.137.0, standalone tarball at `/opt/code-server`, run as uid 10001 in the
-  container. The supervisor starts it as
-  `code-server --bind-addr 0.0.0.0:8080 --auth none --disable-telemetry`.
-- `~/.config/code-server/config.yaml` mirrors that (`bind-addr: 0.0.0.0:8080`,
-  `auth: none`, `cert: false`, telemetry and update check disabled). The CLI
-  flags in `server-start.sh` win, so editing the YAML alone does not change how
-  the supervised process binds.
-- `~/.local/share/code-server/User/settings.json` is the operator profile:
-  GitHub Dark Default theme, Material icons, format-on-save, autosave after a
-  delay, no startup editor, workspace trust disabled, bash as the integrated
-  terminal, Python interpreter `/opt/pyenv/bin/python3` with the bundled Jedi
-  language server, `clangd.path` `/usr/bin/clangd`, CMake generator Ninja with
-  `configureOnOpen: false`, and `C_Cpp.intelliSenseEngine: disabled` (clangd is
-  the C/C++ engine here).
-- Open `http://<host>:8080` and you land in `/workspace`. It is full VS Code —
-  editor, integrated terminal, source control, extension panel. Everything runs
-  as the agent user inside the container, so the IDE can do anything the agents
-  can, including running them from its own terminal.
-
-### Bundled extensions (19 declared; 21 entries installed)
-
-Extensions come from Open VSX during `docker build` and are baked into the
-image, all listed in `/opt/yolo/EXTENSIONS-MANIFEST.txt`. The runtime container
-has no open-vsx.org egress, so the Extensions panel cannot install anything new
-— to add one, edit `docker/install/install-web-ide.sh` and rebuild
-([11-PINS-INTEGRITY.md](11-PINS-INTEGRITY.md)).
-
-| Group | Extensions |
-|---|---|
-| Language tooling (7) | `ms-python.python` (bundled Jedi LS — Pylance is Marketplace-only), `redhat.vscode-yaml`, `tamasfe.even-better-toml`, `dbaeumer.vscode-eslint`, `timonwong.shellcheck`, `editorconfig.editorconfig`, `esbenp.prettier-vscode` |
-| C/C++ (4) | `llvm-vs-code-extensions.vscode-clangd`, `ms-vscode.cmake-tools`, `twxs.cmake`, `vadimcn.vscode-lldb` |
-| Themes and icons (5) | `github.github-vscode-theme`, `mskelton.one-dark-theme`, `dracula-theme.theme-dracula`, `Catppuccin.catppuccin-vsc`, `PKief.material-icon-theme` |
-| Utilities (3) | `eamodio.gitlens`, `mhutchie.git-graph`, `streetsidesoftware.code-spell-checker` |
-
-The four C/C++ extensions are installed in **every** image on purpose, so the
-editor looks the same everywhere — but the tools they drive (`clangd`, `cmake`,
-`ninja`, `lldb`, the compilers) exist only in `yolo-agent-cpp`. In the base and
-reverse-engineering images those extensions are inert; see
-[05-CPP.md](05-CPP.md).
-
-## ttyd + tmux: terminal persistence
-
-The supervisor runs:
-
-```bash
-ttyd -p 7681 -t titleFixed=yolo-agent -W tmux new -A -s yolo-agent /bin/bash -l
-```
-
-What that gives you:
-
-- **Closing the browser tab does not kill the session.** ttyd detaches; the tmux
-  server keeps the shell and its scrollback alive.
-- Reopen `http://<host>:7681` and you are back in the same session, same working
-  directory, with an agent you left running still alive.
-- Reattach from anywhere inside the container — including the code-server
-  terminal: `tmux attach -t yolo-agent`. Start a second one with
-  `tmux new -s work`.
-- `-W` makes the terminal writable (input enabled), and `bash -l` means
-  `~/.bashrc` runs: the agent auto-configuration hook, the flavor banner, and —
-  on the reverse-engineering flavor — `JAVA_HOME`/`PATH` from
-  `/opt/yolo/toolchain-env.sh`.
-- Sessions survive a ttyd crash (the supervisor restarts it within about five
-  seconds, logging to `/tmp/ttyd.log`) but **not** a container restart: the
-  processes and `/tmp` are gone, so a fresh session is created. Long-running
-  work should live in `/workspace`, not in a tmux pane.
-
-Both supervised processes are restarted on exit by `/opt/yolo/server-start.sh`,
-which logs to `/tmp/code-server.log` and `/tmp/ttyd.log` (tmpfs — readable only
-while the container is up).
-
-## The DeepSeek Harness UI and the loopback relay
-
-DeepSeek Harness deliberately listens on container loopback only
-(`127.0.0.1:3080`), and this image does not patch that upstream safety check.
-That alone is not publishable: a Docker port mapping forwards to the
-container's network address, where nothing is listening, so a published
-`3080:3080` mapping would have nothing to connect to.
-
-`/opt/yolo/deepseek-web-start.sh` therefore runs two processes side by side —
-the Harness on loopback, and a `socat` relay on a second container port:
-
-```bash
-dsh web --host 127.0.0.1 --port "${DSH_INTERNAL_PORT:-3080}" &   # the real UI
-socat TCP-LISTEN:"${DSH_RELAY_PORT:-3081}",fork,reuseaddr \
-      TCP:127.0.0.1:"${DSH_INTERNAL_PORT:-3080}" &               # the relay
-```
-
-Compose then publishes the relay port:
-
-```yaml
-deepseek:
-  command: /opt/yolo/deepseek-web-start.sh
-  ports:
-    - ${YOLO_BIND_ADDRESS:-0.0.0.0}:${YOLO_DSH_PORT:-3080}:3081
-```
-
-So the path is: host `:3080` → container `:3081` (socat) → container
-`127.0.0.1:3080` (`dsh web`). Consequences:
-
-- **The relay is a bridge, not a security layer.** It does not authenticate
-  anything and does not restrict what the harness can do. Anything that can
-  reach the published port reaches an agent UI that runs tools against
-  `/workspace`.
-- The script waits on both children and traps `EXIT`/`INT`/`TERM` to kill both,
-  so stopping the service does not leave an orphaned `socat` holding the port.
-- Both ports are overridable with `DSH_INTERNAL_PORT` and `DSH_RELAY_PORT`
-  inside the container, but the relay port must match the compose mapping.
-- `DSH_HOME=/home/agent/.dsh` is baked into the image, so the UI reads exactly
-  the config written by `configure-agents.sh` — see
-  [03-AGENTS.md](03-AGENTS.md). Do not set `DEEPSEEK_API_KEY`.
-- Running `dsh web` by hand inside a shell (`docker compose run --rm agent`)
-  binds container loopback and is therefore *not* reachable from the host. Use
-  the compose `deepseek` service, or run
-  `/opt/yolo/deepseek-web-start.sh` in a container that publishes 3081.
-
-## No authentication: the risk
-
-State it plainly: **none of these surfaces has a login.** code-server runs with
-`auth: none`, ttyd hands out a raw shell, and the Harness UI drives an agent.
-Anyone who can open the port gets, as uid 10001:
-
-- read/write on `/workspace` and on `/home/agent`;
-- the ability to run any binary in the image, including the three agents in YOLO
-  mode;
-- the git credentials and SSH key in the home volume
-  ([08-GIT-GITEA.md](08-GIT-GITEA.md));
-- whatever the model endpoint exposes, since the agents reach it from inside the
-  container.
-
-The container's lockdown — read-only rootfs, `cap_drop: ALL`,
-`no-new-privileges`, seccomp denylist, no Docker socket, no sudo — bounds the
-blast radius to the container and the one mount. It does not protect the
-workspace, the volume, or the LAN, and it is not a substitute for network
-controls ([10-SECURITY.md](10-SECURITY.md)).
-
-Mitigations, strongest first:
-
-```bash
-# 1. Bind host-loopback, then tunnel from your workstation.
-YOLO_BIND_ADDRESS=127.0.0.1 docker compose up -d
-
-ssh -N \
-  -L 8080:127.0.0.1:8080 \
-  -L 7681:127.0.0.1:7681 \
-  -L 3080:127.0.0.1:3080 \
-  user@air-gapped-host
-# then browse to http://127.0.0.1:8080, http://127.0.0.1:7681, http://127.0.0.1:3080
-```
-
-- **Firewall the host.** Restrict the three ports to the machines that need
-  them. Do this on the Docker host — the container has no capabilities and
-  cannot manage firewall rules.
-- **Never expose them to an untrusted network or the internet.** There is no TLS
-  either (`cert: false`), so anything you put in front of them must terminate
-  TLS *and* add authentication. If you add a reverse proxy, keep the backends
-  bound to host loopback so the proxy is the only way in.
-- **Treat `/workspace` as scratch.** The workspace mount is the real security
-  boundary of the whole project ([01-OVERVIEW.md](01-OVERVIEW.md)).
-
-## Across the three flavors
-
-| | base | cpp | reverse |
+| Page | Port | Program | Notes |
 |---|---|---|---|
-| code-server + ttyd + extensions | yes | yes | yes |
-| Harness UI (compose `deepseek` service) | yes | yes | yes |
-| Default host ports | 8080 / 7681 / 3080 | 8080 / 7681 / 3080 | 8080 / 7681 / 3080 |
-| Compose file | `compose.yaml` | `compose.cpp.yaml` | `compose.reverse.yaml` |
-| Home volume (IDE state, extensions dir, open files) | `yolo-agent-base-home-v1` | `yolo-agent-cpp-home-v1` | `yolo-agent-reverse-home-v1` |
-| C/C++ toolchain present (`clangd`, `cmake`, `ninja`, compilers) | no | yes | no |
-| Terminal environment | base | base | adds `JAVA_HOME`, `/opt/java/bin`, `GHIDRA_USER_DIR` |
+| Start | 8000 | `yolo serve home` | buttons for everything below; shows the model, whether SEC09 and Gitea answer, the agents |
+| VS Code | 8080 | code-server 4.137.0 | opens `/workspace`; Kilo Code panel |
+| Chat | 4096 | `opencode web` | the opencode agent in the browser; runs in the container with the same tools as the terminal |
+| Terminal | 7681 | ttyd 1.7.7 + tmux | one tmux session (`main`); closing the tab keeps it running |
+| Files | 8081 | File Browser 2.63.23 | upload, download, zip; root is `/workspace` |
 
-- The browser stack itself is identical in all three images — same code-server
-  and ttyd builds, same extension pack, same `server-start.sh`, same ports. Only
-  the toolchain on top differs.
-- Each flavor has its own compose file, env file, and home volume, so IDE state
-  and agent config are separate: configuring the base container does not affect
-  the C++ one.
-- Because the defaults collide, run one flavor at a time, or move the host ports
-  for the second:
+There is no login on any page. Each service is its own compose service, so a
+crash in one does not take down the others; compose restarts it.
 
-  ```bash
-  YOLO_CODE_PORT=9080 YOLO_TERMINAL_PORT=9681 YOLO_DSH_PORT=3081 \
-    docker compose -f compose.cpp.yaml up -d
-  ```
-- The reverse-engineering flavor adds `JAVA_HOME`/`PATH` (Ghidra and jadx need
-  Java) through `~/.bashrc` → `/opt/yolo/toolchain-env.sh`, which is exactly
-  what a ttyd session or a code-server terminal inherits. See
-  [06-REVERSE-ENGINEERING.md](06-REVERSE-ENGINEERING.md) and
-  [05-CPP.md](05-CPP.md).
-- The base image's smoke suite starts code-server, ttyd, and the relayed Harness
-  UI and requires all three to answer HTTP, so a broken surface fails
-  `docker buildx bake` rather than the offline host
-  ([02-QUICKSTART.md](02-QUICKSTART.md)).
+## VS Code
 
-## Operations
+- Settings come from `/opt/yolo/vscode/settings.json` in the image and are
+  merged into the person's settings on each start. Settings the person changed
+  are kept; yolo-managed keys are refreshed.
+- Extensions in the image are linked into the home volume
+  (`~/.local/share/code-server/extensions`), not copied. Extensions a person
+  installs from a VSIX file stay.
+- Terminals are login shells, so all `yolo` settings and agents are there.
+- VS Code's built-in Copilot chat is turned off (`chat.disableAIFeatures`).
 
-```bash
-# server-mode launcher (bin/run-server.sh): container name is yolo-agent-<flavor>-server
-docker logs -f yolo-agent-base-server
-docker rm -f yolo-agent-base-server
+### Extensions
 
-# compose services
-docker compose ps
-docker compose logs -f server deepseek
-docker compose restart deepseek
-```
+YAML, TOML, ShellCheck, EditorConfig, Prettier, Git Graph, Kilo Code, and
+themes (GitHub, Dracula, Catppuccin, Material icons). The cpp and full tiers
+add clangd, CMake Tools and CMake. The full list is in [PINS.md](../PINS.md).
 
-## Next
+### Kilo Code
 
-- [03-AGENTS.md](03-AGENTS.md) — what you run inside these terminals
-- [10-SECURITY.md](10-SECURITY.md) — containment and exposure tradeoffs
-- [12-TROUBLESHOOTING.md](12-TROUBLESHOOTING.md) — a surface that will not load
+The Kilo icon in the left bar opens an agent panel. It runs Kilo's bundled
+`kilo` program (an opencode fork) inside the container. `yolo configure` writes
+`~/.config/kilo/kilo.json` from the opencode config and selects the SEC09 model
+in VS Code settings, so it works on first open. The first time, Kilo asks you to
+choose between "review first" and "high autonomy"; either works.
+
+Kilo may also show "Move your opencode configuration". That is harmless; close
+it. The config it needs is already in `~/.config/kilo`.
+
+Cline is not included: its provider settings live in VS Code's secret storage
+and cannot be filled in ahead of time, so every person would have to configure
+it by hand.
+
+## The "internet error" in VS Code (fixed in 3.0)
+
+In 2.x, people kept seeing an error notification in VS Code. 3.0 tested every
+2.x extension in a code-server on a network with no internet:
+
+| Extension | What it did offline | 3.0 |
+|---|---|---|
+| `vadimcn.vscode-lldb` (CodeLLDB) | **The error people saw.** Open VSX serves a 94 KB stub; on first start it downloads the real debugger from github.com and fails: "Platform package installation failed: Error: getaddrinfo EAI_AGAIN github.com" | removed (use `gdb` in a terminal) |
+| `ms-python.python` | tries to install its companion extensions from open-vsx.org | removed |
+| `eamodio.gitlens` | calls GitKraken's servers on start | removed (Git Graph and the built-in Source Control remain) |
+| `llvm-vs-code-extensions.vscode-clangd` | offers to download clangd when it is not installed (the 2.x base image) | only in the cpp and full tiers, where clangd exists |
+| `ms-vscode.cmake-tools` | "It is recommended to reconfigure after upgrading to a new kits definition" on first start | automatic kit scan turned off |
+
+With the 3.0 set, a fresh code-server on a network with no internet shows no
+notifications.
+
+Other offline settings in the image: telemetry off, update checks off,
+extension recommendations off, JSON/YAML/TOML schema downloads off, git
+autofetch off, GitHub authentication off.
+
+## Browser requirements
+
+VS Code panels such as Kilo Code use service workers, which browsers allow only
+on `https://` or `http://localhost`. Open VS Code as `http://localhost:8080` on
+the machine that runs the container. From another machine over plain
+`http://<ip>:8080`, the editor works but panels can fail with "Could not
+register service worker". The Chat page (`:4096`) has no such limit.

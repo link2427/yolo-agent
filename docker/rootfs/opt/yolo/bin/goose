@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# yolo wrapper for goose: per-agent settings from ~/.yolo/env/goose.env (written by
+# yolo configure), then the real binary in /opt/agents.
+if [[ -r "$HOME/.yolo/env/goose.env" ]]; then
+  # shellcheck source=/dev/null
+  . "$HOME/.yolo/env/goose.env"
+fi
+exec /opt/agents/bin/goose "$@"

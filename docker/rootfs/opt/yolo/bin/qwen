@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# yolo wrapper for qwen: per-agent settings from ~/.yolo/env/qwen.env (written by
+# yolo configure), then the real binary in /opt/agents.
+if [[ -r "$HOME/.yolo/env/qwen.env" ]]; then
+  # shellcheck source=/dev/null
+  . "$HOME/.yolo/env/qwen.env"
+fi
+exec /opt/agents/bin/qwen "$@"

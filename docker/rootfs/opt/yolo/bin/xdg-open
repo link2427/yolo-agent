@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# There is no desktop in the container. Tools that try to open a browser
+# (opencode web, agent login flows) get the URL printed instead of an error.
+echo "open in your browser: $*" >&2

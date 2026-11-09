@@ -15,9 +15,9 @@ for tool in pycdc pycdas jadx ghidra-headless r2 gdb objdump readelf \
   command -v "$tool" >/dev/null
 done
 
-/opt/java/bin/java -version 2>&1 | grep -q 'version "21'
-pycdc 2>&1 | head -1 || true
-r2 -v | head -1
+/opt/java/bin/java -version 2>&1 | grep 'version "21' >/dev/null
+pycdc 2>&1 | sed -n 1p || true
+r2 -v | sed -n 1p
 jadx --version
 
 # --- one Python environment, now the reverse superset -----------------------
@@ -74,7 +74,7 @@ PY
   "$work/pysrc/app.py" >/dev/null
 exe="$work/dist/probepkg"
 test -x "$exe"
-file -b "$exe" | grep -q '^ELF 64-bit'
+file -b "$exe" | grep '^ELF 64-bit' >/dev/null
 
 # pyinstxtractor-ng creates its output directory in the CURRENT WORKING
 # DIRECTORY (os.path.join(os.getcwd(), basename + "_extracted")), not next to the
@@ -90,7 +90,7 @@ test -d "$extract_dir" || {
   echo "ERROR: pyinstxtractor-ng produced no extraction directory" >&2
   echo "--- pyi.log ---" >&2; cat "$work/pyi.log" >&2; exit 1
 }
-found_pyc="$(find "$extract_dir" -maxdepth 1 -name 'app.pyc' -o -maxdepth 1 -name 'app.*.pyc' | head -1)"
+found_pyc="$(find "$extract_dir" -maxdepth 1 -name 'app.pyc' -o -maxdepth 1 -name 'app.*.pyc' | sed -n 1p)"
 test -n "$found_pyc" || {
   echo "ERROR: no app bytecode extracted" >&2
   ls -la "$extract_dir" >&2 || true
@@ -140,11 +140,11 @@ cat > "$work/hello.c" <<'EOF'
 int main(void) { puts("reverse-engineering probe"); return 0; }
 EOF
 gcc -O2 -o "$work/hello" "$work/hello.c"
-readelf -h "$work/hello" | grep -q 'ELF64'
-objdump -d "$work/hello" | grep -q '<main>'
-r2 -q -c 'ij' "$work/hello" | grep -q '"arch"'
+readelf -h "$work/hello" | grep 'ELF64' >/dev/null
+objdump -d "$work/hello" | grep '<main>' >/dev/null
+r2 -q -c 'ij' "$work/hello" | grep '"arch"' >/dev/null
 yara --version >/dev/null
-file -b "$work/hello" | grep -q '^ELF 64-bit'
+file -b "$work/hello" | grep '^ELF 64-bit' >/dev/null
 
 # LIEF/pefile bindings must load a real binary, not just import.
 /opt/pyenv/bin/python - "$work/hello" <<'PY'

@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# yolo wrapper for crush: per-agent settings from ~/.yolo/env/crush.env (written by
+# yolo configure), then the real binary in /opt/agents.
+if [[ -r "$HOME/.yolo/env/crush.env" ]]; then
+  # shellcheck source=/dev/null
+  . "$HOME/.yolo/env/crush.env"
+fi
+exec /opt/agents/bin/crush "$@"

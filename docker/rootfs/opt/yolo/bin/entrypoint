@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+#
+# Container entrypoint (runs under tini). Configures everything, then runs the
+# command. Configuration runs on every start, under a lock, so every service
+# (code, term, chat, ...) gets the same agent and git setup whether or not a
+# shell is ever opened.
+set -euo pipefail
+# shellcheck source=/opt/yolo/lib/env.sh
+. /opt/yolo/lib/env.sh
+
+if [[ "${YOLO_SKIP_CONFIGURE:-0}" != 1 ]]; then
+  /opt/yolo/bin/yolo configure || echo "yolo: configure reported a problem; continuing (run 'yolo doctor')" >&2
+fi
+
+exec "$@"
