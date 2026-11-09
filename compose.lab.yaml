@@ -15,7 +15,6 @@
 #
 # Both use the core image; no other images are needed.
 
-name: ${COMPOSE_PROJECT_NAME:-yolo-lab}
 
 x-base: &base
   image: ${YOLO_IMAGE:-yolo-agent:3.0.0-core}

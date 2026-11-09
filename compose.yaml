@@ -22,7 +22,6 @@
 #
 # All services run the same image and share /workspace and the home volume.
 
-name: ${COMPOSE_PROJECT_NAME:-yolo}
 
 x-agent: &agent
   image: ${YOLO_IMAGE:-yolo-agent:3.0.0-full}

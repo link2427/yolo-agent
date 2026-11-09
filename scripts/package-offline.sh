@@ -35,7 +35,6 @@ done
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 mkdir -p "$out"; out="$(cd "$out" && pwd)"
-limit=2147483648
 tiers=(core cpp full)
 
 echo "=== images"
@@ -52,17 +51,17 @@ archive="yolo-agent-${version}-images.tar.zst"
 rm -f "$out/$archive" "$out/$archive".part-*
 echo "=== docker save ${local_tags[*]} | zstd → $archive"
 # Long-distance matching finds the layers the tiers share; level 19 is slow to
-# write but decompresses as fast as level 3.
-docker save "${local_tags[@]}" | zstd -T0 -19 --long=27 -q -o "$out/$archive"
-size="$(stat -c %s "$out/$archive")"
-echo "    $(numfmt --to=iec "$size")"
-image_files=("$archive")
-if (( size >= limit )); then
-  split -b 1900m -d -a 2 "$out/$archive" "$out/$archive.part-"
-  rm -f "$out/$archive"
-  mapfile -t image_files < <(cd "$out" && ls "$archive".part-*)
-  echo "    split into ${#image_files[@]} parts"
+# write but decompresses as fast as level 3. The stream goes straight into
+# 1900 MiB parts (GitHub's asset limit is 2 GiB), so the archive never exists
+# twice on disk; a single part is renamed to the plain archive name.
+docker save "${local_tags[@]}" | zstd -T0 -19 --long=27 -q -c | split -b 1900m -d -a 2 - "$out/$archive.part-"
+mapfile -t image_files < <(cd "$out" && ls "$archive".part-*)
+if (( ${#image_files[@]} == 1 )); then
+  mv "$out/${image_files[0]}" "$out/$archive"
+  image_files=("$archive")
 fi
+size="$(cat "${image_files[@]/#/$out/}" | wc -c)"
+echo "    $(numfmt --to=iec "$size") in ${#image_files[@]} file(s)"
 
 echo "=== kit"
 kit="yolo-agent-${version}"
