@@ -22,6 +22,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 MODEL = os.environ.get("STUB_MODEL", "Qwen/Qwen3-Stub")
 REPLY = os.environ.get("STUB_REPLY", "YOLO-STUB-OK")
 LOG = os.environ.get("STUB_LOG", "/tmp/stub-llm.jsonl")
+# Pause between streamed chunks. Some clients (Crush) drop the reply when the
+# whole stream arrives at once, which a real model never does.
+DELAY = float(os.environ.get("STUB_DELAY", "0.05"))
 
 
 # Synthetic vLLM metrics: a slow load wave plus whatever real requests arrive,
@@ -117,6 +120,7 @@ class H(BaseHTTPRequestHandler):
         s = (f"event: {event}\n" if event else "") + f"data: {data if isinstance(data, str) else json.dumps(data)}\n\n"
         self.wfile.write(s.encode())
         self.wfile.flush()
+        time.sleep(DELAY)
 
     def _record(self, body):
         try:

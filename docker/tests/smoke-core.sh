@@ -75,8 +75,8 @@ yolo configure >/dev/null   # back to the stub
 # --- every agent completes a real round trip through its generated config ---
 cd /workspace
 for cmd in "opencode run hello" "claude -p hello" "qwen -p hello" "pi -p hello" "crush run -q hello"            "goose run -t hello --no-session" "codex exec --skip-git-repo-check hello"; do
-  # Crush sometimes drops its output when the reply arrives instantly (the
-  # stub answers in microseconds), so each agent gets three tries.
+  # Crush drops its output when the whole stream arrives at once; the stub
+  # paces its chunks (STUB_DELAY) for that, and each agent gets three tries.
   for _try in 1 2 3; do
     out="$(timeout 120 $cmd 2>&1 </dev/null)" || { echo "FAIL: $cmd"; printf '%s
 ' "$out" | tail -20; exit 1; }
